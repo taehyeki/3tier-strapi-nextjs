@@ -1,69 +1,172 @@
+// 메뉴 페이지. 서버 컴포넌트이므로 이 코드는 서버에서만 실행되고,
+// 브라우저에는 완성된 HTML 만 전달된다 (토큰은 절대 전달되지 않는다).
+import type { Metadata } from "next";
 import Image from "next/image";
+import { getMenuPage, getShop, type Media, type Menu } from "@/lib/menu";
+import { toPublicUrl } from "@/lib/strapi";
 
-export default function Home() {
+// Enumeration 값(식별자) → 화면에 표시할 글자 (02장에서 정한 규칙)
+// 키의 종류("small" | "medium" | "large")는 Strapi 스키마에서 생성된 타입과 일치해야 한다
+const SIZE_LABEL: Record<NonNullable<Menu["sizes"]>[number]["label"], string> =
+  {
+    small: "小",
+    medium: "中",
+    large: "大",
+  };
+
+const yen = (n: number) => `${n.toLocaleString("ja-JP")}円`;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const shop = await getShop();
+  return { title: shop.name, description: shop.catchphrase };
+}
+
+// 사진은 Strapi 가 준 URL 을 그대로 표시한다.
+// (Next.js 16 의 이미지 최적화는 localhost 이미지를 막으므로 unoptimized)
+function Photo({ media, alt }: { media?: Media; alt: string }) {
+  if (!media) return null;
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <Image
+      src={toPublicUrl(media.url)}
+      alt={media.alternativeText ?? alt}
+      width={media.width ?? 1200}
+      height={media.height ?? 900}
+      unoptimized
+      className="aspect-[4/3] w-full object-cover"
+    />
+  );
+}
+
+export default async function Page() {
+  const { shop, menus, toppings, extras } = await getMenuPage();
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 py-10">
+      <header className="mb-10 text-center">
+        <h1 className="text-4xl font-black tracking-wider">{shop.name}</h1>
+        {shop.catchphrase && (
+          <p className="mt-2 text-stone-600">{shop.catchphrase}</p>
+        )}
+      </header>
+
+      <section aria-labelledby="menu" className="mb-12">
+        <h2 id="menu" className="mb-4 text-2xl font-bold">
+          メニュー
+        </h2>
+        <div className="grid gap-6 sm:grid-cols-2">
+          {menus.map((menu) => (
+            <article
+              key={menu.documentId}
+              className="overflow-hidden rounded-xl border border-stone-200 bg-white"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              <Photo media={menu.photo} alt={menu.name} />
+              <div className="p-5">
+                <h3 className="text-xl font-bold">{menu.name}</h3>
+                {menu.description && (
+                  <p className="mt-1 text-sm text-stone-600">
+                    {menu.description}
+                  </p>
+                )}
+                <table className="mt-4 w-full text-sm">
+                  <tbody>
+                    {(menu.sizes ?? []).map((size) => (
+                      <tr
+                        key={size.label}
+                        className="border-t border-stone-100"
+                      >
+                        <th className="py-2 text-left">
+                          {SIZE_LABEL[size.label]}
+                        </th>
+                        <td className="py-2 text-stone-600">
+                          {size.noodleGrams && `麺 ${size.noodleGrams}g`}
+                        </td>
+                        <td className="py-2 text-right font-bold">
+                          {yen(size.price)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-3 text-xs text-stone-500">
+                  無料トッピング：
+                  {(menu.toppings ?? []).map((t) => t.name).join("・")}
+                  <br />
+                  追加できるもの：
+                  {(menu.extras ?? []).map((e) => e.name).join("・")}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section aria-labelledby="toppings" className="mb-12">
+        <h2 id="toppings" className="mb-4 text-2xl font-bold">
+          無料トッピング（コール）
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {toppings.map((topping) => (
+            <li
+              key={topping.documentId}
+              className="rounded-xl border border-stone-200 bg-white p-4"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              <p className="font-bold">{topping.name}</p>
+              {topping.description && (
+                <p className="text-sm text-stone-600">{topping.description}</p>
+              )}
+              <p className="mt-2 flex flex-wrap gap-2">
+                {(topping.levels ?? []).map((level) => (
+                  <span
+                    key={level.label}
+                    className="rounded-full bg-amber-100 px-3 py-0.5 text-sm"
+                  >
+                    {level.label}
+                  </span>
+                ))}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="extras" className="mb-12">
+        <h2 id="extras" className="mb-4 text-2xl font-bold">
+          追加メニュー
+        </h2>
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {extras.map((extra) => (
+            <li
+              key={extra.documentId}
+              className="overflow-hidden rounded-xl border border-stone-200 bg-white"
+            >
+              <Photo media={extra.photo} alt={extra.name} />
+              <p className="flex justify-between p-3 text-sm">
+                <span className="font-bold">{extra.name}</span>
+                <span>+{yen(extra.price)}</span>
+              </p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section
+        aria-labelledby="shop"
+        className="rounded-xl border border-stone-200 bg-white p-5 text-sm leading-relaxed"
+      >
+        <h2 id="shop" className="mb-3 text-lg font-bold">
+          店舗情報
+        </h2>
+        <dl className="grid grid-cols-[6rem_1fr] gap-y-2">
+          <dt className="text-stone-500">住所</dt>
+          <dd>{shop.address}</dd>
+          <dt className="text-stone-500">営業時間</dt>
+          <dd className="whitespace-pre-line">{shop.businessHours}</dd>
+          <dt className="text-stone-500">定休日</dt>
+          <dd>{shop.closedDays}</dd>
+          <dt className="text-stone-500">食券の買い方</dt>
+          <dd className="whitespace-pre-line">{shop.ticketRule}</dd>
+        </dl>
+      </section>
+    </main>
   );
 }

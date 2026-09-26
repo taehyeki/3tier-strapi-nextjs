@@ -12,7 +12,8 @@
     "lint": "biome check",
     "format": "biome check --write",
     "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "gen:types": "pnpm -F cms openapi && pnpm -F web gen:types && biome format --write apps/web/src/types"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14"

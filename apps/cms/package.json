@@ -10,7 +10,8 @@
     "develop": "strapi develop",
     "start": "strapi start",
     "strapi": "strapi",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "openapi": "strapi openapi generate --output openapi.json"
   },
   "dependencies": {
     "@strapi/database": "5.55.1",

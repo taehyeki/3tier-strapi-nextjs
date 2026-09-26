@@ -35,3 +35,5 @@ notes/
 # 개인 PC 전용 compose 설정
 compose.override.yaml
 
+# Strapi 가 생성하는 OpenAPI 명세 (타입 생성의 중간 산출물)
+apps/cms/openapi.json
