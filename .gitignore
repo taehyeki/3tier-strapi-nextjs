@@ -1,0 +1,30 @@
+# 의존성·빌드 결과
+node_modules/
+dist/
+build/
+.next/
+out/
+.strapi/
+.tmp/
+*.tsbuildinfo
+
+# CDK
+infra/cdk.out/
+cdk.context.json.bak
+
+# 환경변수 (절대 커밋하지 않는다. 예시는 .env.example 로)
+.env
+.env.*
+!.env.example
+
+# Strapi 로컬 업로드 파일 (데이터는 git 이 아니라 DB/S3 에 있다)
+apps/cms/public/uploads/*
+!apps/cms/public/uploads/.gitkeep
+
+# 담당자 전용 학습 노트
+notes/
+
+# 기타
+.DS_Store
+*.log
+.claude/settings.local.json

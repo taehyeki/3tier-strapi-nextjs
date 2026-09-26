@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "outputStyle": "Explanatory",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm install*)",
+      "Bash(pnpm run *)",
+      "Bash(pnpm -F *)",
+      "Bash(pnpm --filter *)",
+      "Bash(pnpm exec biome *)",
+      "Bash(pnpm exec tsc *)",
+      "Bash(pnpm exec cdk synth*)",
+      "Bash(pnpm exec cdk diff*)",
+      "Bash(pnpm exec cdk ls*)",
+      "Bash(docker compose *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git add *)",
+      "Bash(gh run list*)",
+      "Bash(gh run view*)",
+      "Bash(gh pr view*)",
+      "Bash(gh pr checks*)"
+    ],
+    "ask": [
+      "Bash(*cdk deploy*)",
+      "Bash(*cdk destroy*)",
+      "Bash(*cdk bootstrap*)",
+      "Bash(git push*)",
+      "Bash(gh repo *)",
+      "Bash(gh secret *)",
+      "Bash(gh variable *)",
+      "Bash(gh api -X *)"
+    ],
+    "deny": [
+      "Read(./**/.env)",
+      "Read(./**/.env.local)",
+      "Read(./**/.env.production)"
+    ]
+  }
+}
