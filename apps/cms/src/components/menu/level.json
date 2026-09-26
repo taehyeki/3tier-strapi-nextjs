@@ -1,0 +1,15 @@
+{
+  "collectionName": "components_menu_levels",
+  "info": {
+    "displayName": "Level",
+    "icon": "bulletList"
+  },
+  "options": {},
+  "attributes": {
+    "label": {
+      "type": "string",
+      "required": true
+    }
+  },
+  "config": {}
+}

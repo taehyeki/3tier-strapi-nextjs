@@ -1,0 +1,44 @@
+{
+  "kind": "collectionType",
+  "collectionName": "menus",
+  "info": {
+    "singularName": "menu",
+    "pluralName": "menus",
+    "displayName": "Menu"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    },
+    "sizes": {
+      "type": "component",
+      "component": "menu.size",
+      "repeatable": true
+    },
+    "extras": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::extra.extra",
+      "inversedBy": "menus"
+    },
+    "toppings": {
+      "type": "relation",
+      "relation": "manyToMany",
+      "target": "api::topping.topping",
+      "inversedBy": "menus"
+    }
+  }
+}

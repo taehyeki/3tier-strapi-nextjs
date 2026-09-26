@@ -1,0 +1,23 @@
+{
+  "collectionName": "components_menu_sizes",
+  "info": {
+    "displayName": "Size",
+    "icon": "priceTag"
+  },
+  "options": {},
+  "attributes": {
+    "label": {
+      "type": "enumeration",
+      "required": true,
+      "enum": ["small", "medium", "large"]
+    },
+    "noodleGrams": {
+      "type": "integer"
+    },
+    "price": {
+      "type": "integer",
+      "required": true
+    }
+  },
+  "config": {}
+}

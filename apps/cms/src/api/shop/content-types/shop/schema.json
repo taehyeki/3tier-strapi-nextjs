@@ -1,0 +1,39 @@
+{
+  "kind": "singleType",
+  "collectionName": "shops",
+  "info": {
+    "singularName": "shop",
+    "pluralName": "shops",
+    "displayName": "Shop"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "name": {
+      "type": "string",
+      "required": true
+    },
+    "catchphrase": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "businessHours": {
+      "type": "text"
+    },
+    "closedDays": {
+      "type": "string"
+    },
+    "ticketRule": {
+      "type": "text"
+    },
+    "photo": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["images"]
+    }
+  }
+}
