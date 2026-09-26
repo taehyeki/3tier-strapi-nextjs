@@ -18,17 +18,17 @@
 | 02 스키마 | docs/ko/02-strapi-schema.html | 완료 (메뉴판 그림으로 4가지 그릇 설명) |
 | 03 데이터·API | docs/ko/03-data-and-api.html | 완료 (403/401/200 토큰 원리) |
 | 04 Next.js | docs/ko/04-nextjs-page.html | 완료 (타입 자동 생성, 화면은 "받은 값이 어디에 나오나"를 부분 코드+부분 스크린샷으로) |
-| 05 GitHub·CI | - | **다음 작업** |
+| 05 GitHub·CI | - | **진행 중**: 코드(Dockerfile·lefthook·ci.yml) 로컬 검증 완료, 브랜치 `ci/setup`. 다음: push → PR → GitHub 설정(담당자 개입) → 문서 |
 | 06 배포(CD) | - | 미착수 |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
-로컬 커밋 완료(아직 push 안 함), 문서의 장별 커밋과 1:1 대응:
-`dfa5514 chore: 로컬 개발환경 구성` / `e658687 feat(cms): 메뉴 스키마 추가` / `1091761 chore(web): Strapi 접속 설정 예시 추가` / `f54998a feat(web): 메뉴 페이지`.
-docs/·.claude/·assets/ 는 미커밋(담당자 산출물, 별도 커밋 예정). 05장에서 GitHub 에 push 하고, 이후 변경은 브랜치 → PR 로 한다.
+장별 커밋 (2026-09-26 pnpm 12 로 재작성, push 전. 이전 히스토리는 `backup/pre-pnpm12` 브랜치):
+`4ecddab chore: 로컬 개발환경 구성` / `7a048fe feat(cms): 메뉴 스키마 추가` / `ba8c9fd chore(web): Strapi 접속 설정 예시 추가` / `92224da feat(web): 메뉴 페이지`.
+origin 에는 첫 커밋(682a56e)만 있음. 05장에서 main 을 push 하고, 이후 코드 변경은 브랜치 → PR(squash) 로 한다.
 
 ## 확정된 설계 (근거는 notes/study-notes.html)
 
-- 모노레포 pnpm 10 / Node 24 / Biome 2.4 (루트 biome.json) / Strapi 5.55 / Next.js 16.3 (App Router)
+- 모노레포 pnpm 12.6 (allowBuilds 전부 false, 공개 1일 미만 버전 거부) / Node 24 / Biome 2.5 (루트 biome.json, preset recommended, svg 제외) / Strapi 5.55 / Next.js 16.3 (App Router)
 - 로컬: DB만 Docker(postgres:17, 5432), web :3000·cms :1337 는 `pnpm dev:*`
 - Strapi: 스키마·데이터·토큰은 관리자 화면. 코드는 config 만. 토큰 = Custom(find/findOne만)
 - Next.js: `@strapi/client`(공식) + `server-only` + 데이터 함수 안에서 `await connection()` (빌드 시 Strapi 불필요, 런타임 env)
@@ -50,7 +50,9 @@ docs/·.claude/·assets/ 는 미커밋(담당자 산출물, 별도 커밋 예정
 
 - `apps/cms/types/generated` 는 커밋 대상 → CI 에서 Strapi 기동 없이 typecheck 가능
 - `pnpm -F web build` 는 Strapi 없이 성공해야 함(`/` = ƒ Dynamic). CI 는 `.env.local` 없이 빌드
-- Dockerfile(web, cms)은 05장에서 작성 (CI 의 Docker 빌드·Trivy 대상). Next 는 `output: "standalone"` 검토
+- Dockerfile 검증 완료: web 292MB(standalone, 서버는 `apps/web/server.js`), cms 1.09GB. 둘 다 `node` 사용자. cms 는 빈 DB 에 스키마 자동 생성, 토큰 없는 API 403
+- pnpm 12 에서는 담당자 PC 의 pnpm 10 이 자동 전환 못 함 → 담당자가 `npx get-pnpm` 필요(그 전까지 Claude 는 scratchpad 의 pnpm 12 사용)
+- Docker Desktop 스냅샷 오류("already exists")로 로컬 Trivy 이미지 pull 실패 → Docker Desktop 재시작으로 해결(이전에도 같은 증상)
 - 06장: Strapi `config/plugins.ts`(S3 upload provider), `config/middlewares.ts`(CSP 에 이미지 도메인), 운영 토큰은 운영 Strapi 에서 따로 발급→Secrets Manager, 첫 관리자 등록은 배포 직후 바로(선점 위험)
 - 회사 환경 인수 목록: CDK bootstrap 1회, GitHub OIDC Provider 계정당 1개, VPC/EIP 한도, Docker Desktop 라이선스, GitHub 플랜별 기능
 

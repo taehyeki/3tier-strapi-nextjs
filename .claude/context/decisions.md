@@ -26,6 +26,15 @@
 - 타입: Strapi OpenAPI(experimental) → openapi-typescript 로 자동 생성 — 스키마 이중 정의 방지 / 손으로 쓴 타입, `@strapi/client` 제네릭(결국 수동 정의).
 - 미디어: S3 — 컨테이너는 디스크가 사라짐(stateless) / 로컬 디스크.
 - 스택: Node 24, pnpm workspace 모노레포, Biome, Tailwind, TypeScript.
+- `[변경]` pnpm 10.18 → **pnpm 12.6** (2026-09-26, 05장 착수 시 발견). push 전이라 01~04장 커밋을 다시 만들었다(기존은 `backup/pre-pnpm12` 브랜치).
+  이유: latest 가 12. pnpm 11 부터 `onlyBuiltDependencies` 삭제 → `allowBuilds`, 공개 1일 미만 버전 설치 거부(`minimumReleaseAge`)가 기본값 → 10 기준 문서는 최신 pnpm 에서 동작하지 않음.
+  / 버린 대안: 11(이미 최신 아님), 10 유지(문서에 버전 고정 안내 필요).
+  - 설치는 `npx get-pnpm`(공식 안내. pnpm 12 는 네이티브 실행 파일, corepack 은 공식 안내에서 빠짐). pnpm 10 의 자동 버전 전환은 12 로 전환하지 못함.
+  - `allowBuilds` 는 전부 false — 스크립트 없이 install·dev·build 가 되는 것을 확인. "필요한 것만 허용"의 최소형.
+- Biome 2.4 → **2.5.14**. `linter.rules.recommended` 는 폐지 예정 → `"preset": "recommended"`
+  (`biome migrate` 가 `"none"`(=전부 끔)으로 잘못 바꾸므로 손으로 씀). 2.5 부터 SVG 도 검사 → `!**/*.svg` 제외(이미지 파일).
+- web typecheck = `next typegen && tsc --noEmit` — `next-env.d.ts`·`.next/types` 는 git 제외라 CI(깨끗한 checkout)에서 `LayoutProps` 가 없어 실패. Next 공식 권장.
+- 히스토리 재작성 때 함께 바로잡음: `apps/cms/openapi.json` 이 .gitignore 추가 전부터 추적되던 것 제거, 01장 커밋에 섞여 있던 02·04장 산출물(생성 타입·`gen:types`) 제거.
 
 ## 로컬 개발
 
@@ -53,10 +62,26 @@
 - GitHub: main Ruleset(PR 필수·CI 통과 필수), Environment `production` 승인, Secret scanning. **Dependabot 은 쓰지 않음**.
 - 저장소: 담당자 개인 계정 **public** 으로 모든 기능 체험. 회사 플랜에서 안 되는 기능은 "없으면 생략 가능"으로 표기.
 
+### 05장 구현 결정 (2026-09-26)
+
+- Actions 는 전부 **커밋 SHA 고정** + `# vX.Y.Z` 주석 — 2026-03 trivy-action 태그 탈취 사건(GHSA-69fq-xp46-6x23) / 태그 지정(가변). Dependabot 을 안 쓰므로 SHA 갱신은 수동.
+- pnpm 설치는 `pnpm/setup@v3` — pnpm 공식, packageManager·.nvmrc 를 자동으로 읽고 캐시·install 까지 한 단계 / `pnpm/action-setup`+`actions/setup-node`(2단계, 버전 중복).
+- CI job 3개(= Ruleset 필수 체크 이름): `check`(biome ci + typecheck), `secrets`(gitleaks 전체 히스토리), `image (web)`·`image (cms)`(Docker 빌드 + Trivy).
+  빌드 검증은 Docker 빌드가 겸한다(앱 build 를 따로 돌리지 않음).
+- Trivy: 고칠 수 있는(`ignore-unfixed`) HIGH·CRITICAL 이면 실패. 결과는 SARIF → Security 탭(private+GHAS 없음이면 두 단계 삭제 가능).
+- gitleaks 는 **Docker 이미지**(`ghcr.io/gitleaks/gitleaks:v8.30.1`)로 lefthook·CI 동일 버전 실행 — Docker 는 01장에서 이미 필요, OS 별 설치 불필요
+  / gitleaks-action(조직 저장소는 라이선스 키 필요 → 회사 이전 시 문제), brew 설치(Windows 연수자).
+- lefthook 2 는 npm devDependency + `allowBuilds: lefthook: true`(설치 시 hook 등록, lefthook 공식 안내). pre-commit: Biome(`--write` + `stage_fixed`, Biome 공식 레시피), gitleaks(`--staged`).
+- Dockerfile: `node:24-alpine`, 멀티 스테이지, 비root(`node`), 빌드 컨텍스트 = 저장소 루트, pnpm 버전은 packageManager 에서 읽어 `npm i -g`.
+  web = Next `output: "standalone"`(Next 공식 Docker 예시 기반). cms = `pnpm deploy --prod` + dist, `public/uploads` 생성(없으면 Strapi 기동 실패).
+- 머지 방식은 squash 만 — PR 1개 = main 커밋 1개(장별 커밋 원칙, PR 제목이 Conventional Commits 메시지). 승인 인원 0(연수자 1인 저장소).
+
 ## 문서
 
 - HTML(`docs/ko` → 승인 후 `docs/ja` 자연스러운 일본어). 도식은 AWS 공식 아이콘. 저장소에 둔다(Artifact 공유 안 함).
 - 스크린샷: 로컬 화면은 Claude 가 Playwright 로. **GitHub·AWS 콘솔 화면은 담당자가 로그인하고 Claude 가 캡처**(계정 ID 등은 가림). 같은 성격의 조작은 대표 1장.
+  - 담당자 개입 방식: Claude 가 "무엇을 / 왜(무엇을 위해) 추가하는지 / 어느 화면에서" 요청 → 담당자가 조작해 화면을 띄움 → Claude 가 캡처.
+    화면이 원하는 상태와 다르면 Claude 가 직접 조작해서 찍는다. 개인정보(사용자명·아바타·이메일·계정 ID 등)는 Claude 가 판단해 블러 처리.
 - 코드는 연결·설정·보안·빌드만 싣고, 화면 코드는 디자인을 뺀 요약("받은 값이 어디에 나오나"). 핵심 부분만 부분 스크린샷, 나머지는 전체 화면 1장. 장마다 커밋 1개.
 - 담당자 학습 노트(`notes/`, 비공개)는 상세히. ADR 은 따로 만들지 않고 이 파일로 대신한다.
 
