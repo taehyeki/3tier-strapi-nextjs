@@ -16,3 +16,7 @@
 ## 현재 진행 상황
 
 @.claude/context/status.md
+
+## 결정 기록 (grilling 포함, 이유·버린 대안·변경 이력)
+
+@.claude/context/decisions.md

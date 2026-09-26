@@ -1,7 +1,7 @@
 # AGENTS.md
 
 이 저장소에서 작업하는 모든 AI 에이전트·개발자를 위한 규칙이다 (Claude Code 는 CLAUDE.md 가 이 파일을 불러온다).
-진행 상황·확정 설계·다음 작업은 `.claude/context/status.md` 에 있다. 작업 전에 반드시 읽는다.
+진행 상황·다음 작업은 `.claude/context/status.md`, 모든 결정의 이유·버린 대안·변경 이력은 `.claude/context/decisions.md` 에 있다. 작업 전에 반드시 읽는다.
 
 ## 이 저장소는 무엇인가
 
@@ -36,7 +36,7 @@
 ## 작업 규칙
 
 - 담당자가 말한 **중요한 방침·결정은 즉시 파일에 동기화**한다. 대화에만 있는 결정은 없는 것으로 본다.
-  - 원칙·규칙 → 이 AGENTS.md / 결정·진행·검증한 사실 → `.claude/context/status.md` / 문서 작성 규칙 → `.claude/skills/write-guide`
+  - 원칙·규칙 → 이 AGENTS.md / 결정(이유·대안) → `.claude/context/decisions.md` / 진행·검증한 사실 → `.claude/context/status.md` / 문서 작성 규칙 → `.claude/skills/write-guide`
 - 작업 단위가 끝나면 status.md 를 갱신한다. 세션이 바뀌거나 컨텍스트가 정리돼도 이 파일들만으로 이어갈 수 있어야 한다.
 - 문서를 고칠 때는 앞 장과의 일관성도 확인한다 (뒤 장의 결정이 앞 장의 내용을 바꾸는지).
 
