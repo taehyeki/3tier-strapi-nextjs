@@ -32,7 +32,7 @@
 <table>
 <tr><th>도구</th><th>용도</th><th>설치</th><th>확인 명령</th></tr>
 <tr><td>Node.js 24</td><td>Next.js와 Strapi를 실행합니다</td><td><a href="https://github.com/nvm-sh/nvm">nvm</a>으로 <code>nvm install 24</code></td><td><code>node -v</code> → <code>v24.x.x</code></td></tr>
-<tr><td>pnpm</td><td>패키지를 설치하고 관리합니다</td><td><code>corepack enable</code> (Node에 들어 있음)</td><td><code>pnpm -v</code></td></tr>
+<tr><td>pnpm 12</td><td>패키지를 설치하고 관리합니다</td><td>Node 설치 후 <code>npx get-pnpm</code> → <strong>터미널을 새로 열기</strong></td><td><code>pnpm -v</code> → <code>12.x.x</code></td></tr>
 <tr><td>Docker</td><td>DB를 컨테이너로 실행합니다</td><td>Docker Desktop 등</td><td><code>docker compose version</code></td></tr>
 <tr><td>Git</td><td>버전을 관리합니다</td><td>OS 기본 또는 공식 사이트</td><td><code>git --version</code></td></tr>
 <tr><td>에디터</td><td>코드를 편집합니다</td><td>VS Code 권장</td><td></td></tr>
@@ -57,22 +57,29 @@ mkdir apps</code></pre>
   - apps/*
   - infra
 
-# 설치 시 빌드 스크립트(postinstall 등) 실행을 허용할 패키지 목록.
-# pnpm 10 부터 기본값은 "모두 차단" 입니다 (공급망 공격 방지). 필요한 것만 명시적으로 허용합니다.
-onlyBuiltDependencies:
-  - "@swc/core"
-  - core-js-pure
-  - esbuild
-  - sharp
-ignoredBuiltDependencies:
-  - unrs-resolver</code></pre>
+# 설치할 때 패키지의 빌드 스크립트(postinstall 등)를 실행할지 정합니다.
+# pnpm 은 기본적으로 모두 막고, 여기에 적히지 않은 패키지가 스크립트를 가지고 있으면 설치를 멈춥니다 (공급망 공격 방지).
+# 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 모두 false(실행 안 함)로 둡니다.
+allowBuilds:
+  "@swc/core": false
+  core-js-pure: false
+  esbuild: false</code></pre>
 <p><code>apps/</code> 아래의 폴더와 <code>infra</code>(나중에 만듦)를 하나의 작업공간으로 묶습니다.</p>
+<details>
+<summary>pnpm이 막아 주는 두 가지 (공급망 공격 방지)</summary>
+<p><strong>공급망 공격</strong>은 누군가 유명 패키지에 악성 코드를 섞어 공개하고, 그걸 설치한 PC나 서버에서 코드가 실행되게 하는 공격입니다. pnpm 12는 기본 설정으로 두 가지를 막습니다.</p>
+<table>
+<tr><th>막는 것</th><th>내용</th></tr>
+<tr><td>설치할 때 스크립트 실행</td><td>위의 <code>allowBuilds</code>에서 허용한 패키지만 스크립트를 실행합니다. 새 패키지를 추가했는데 <code>ERR_PNPM_IGNORED_BUILDS</code>가 나오면, 그 패키지를 여기에 적고 <code>true</code>/<code>false</code>를 정합니다</td></tr>
+<tr><td>막 공개된 버전</td><td>공개된 지 <strong>하루가 안 된 버전</strong>은 설치하지 않고, 그 전 버전을 씁니다. 악성 버전은 대개 하루 안에 발견되어 삭제되기 때문입니다</td></tr>
+</table>
+</details>
 
 <p class="file">package.json</p>
 <pre><code>{
   "name": "3tier-strapi-nextjs",
   "private": true,
-  "packageManager": "pnpm@10.18.0",
+  "packageManager": "pnpm@12.6.0",
   "engines": {
     "node": "&gt;=24 &lt;25"
   },
@@ -86,7 +93,7 @@ ignoredBuiltDependencies:
     "build": "pnpm -r build"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.2"
+    "@biomejs/biome": "2.5.14"
   }
 }</code></pre>
 <p>자주 쓰는 명령을 저장소 루트에 모았습니다. 예: <code>pnpm dev:cms</code> = "cms 앱의 develop 명령 실행". <code>packageManager</code>는 pnpm 버전을 고정합니다.</p>
@@ -333,7 +340,8 @@ mv apps/web/biome.json biome.json
 
 cd apps/web
 npm pkg delete packageManager scripts.lint scripts.format "devDependencies.@biomejs/biome"
-npm pkg set scripts.typecheck="tsc --noEmit"
+# Next.js 가 만드는 타입(LayoutProps 등)을 먼저 생성한 뒤 검사 (CI 처럼 처음 받은 상태에서도 통과하도록)
+npm pkg set scripts.typecheck="next typegen &amp;&amp; tsc --noEmit"
 cd ../..
 pnpm add -D @types/node@^24 --filter web
 pnpm install
@@ -345,7 +353,7 @@ pnpm dev:web</code></pre>
 <p>Biome은 <strong>코드 모양 통일(포맷)</strong>과 <strong>실수 검출(린트)</strong>을 한 번에 하는 도구입니다. 저장소 루트의 <code>biome.json</code>을 아래 내용으로 바꿔서 web과 cms 전체에 같은 규칙을 적용합니다.</p>
 <p class="file">biome.json (저장소 루트)</p>
 <pre><code>{
-  "$schema": "https://biomejs.dev/schemas/2.4.2/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
     "ignoreUnknown": true,
@@ -358,6 +366,7 @@ pnpm dev:web</code></pre>
       "!**/.strapi",
       "!**/types/generated",
       "!**/cdk.out",
+      "!**/*.svg",
       "!docs"
     ]
   },
@@ -365,7 +374,7 @@ pnpm dev:web</code></pre>
   "css": { "parser": { "tailwindDirectives": true } },
   "linter": {
     "enabled": true,
-    "rules": { "recommended": true },
+    "rules": { "preset": "recommended" },
     "domains": { "next": "recommended", "react": "recommended" }
   },
   "assist": { "actions": { "source": { "organizeImports": "on" } } }
@@ -375,9 +384,9 @@ pnpm dev:web</code></pre>
 <table>
 <tr><th>항목</th><th>의미</th></tr>
 <tr><td><code>vcs.useIgnoreFile</code></td><td><code>.gitignore</code>에 있는 파일은 검사하지 않습니다</td></tr>
-<tr><td><code>files.includes</code></td><td><code>!</code>가 붙은 것은 제외합니다(자동 생성 파일, 빌드 결과, 문서)</td></tr>
+<tr><td><code>files.includes</code></td><td><code>!</code>가 붙은 것은 제외합니다(자동 생성 파일, 빌드 결과, 이미지(svg), 문서)</td></tr>
 <tr><td><code>formatter</code></td><td>들여쓰기 2칸 등 코드 모양을 통일합니다</td></tr>
-<tr><td><code>linter.recommended</code></td><td>사용하지 않는 변수, 잘못된 비교 등 흔한 실수를 찾습니다</td></tr>
+<tr><td><code>linter.rules.preset</code></td><td><code>recommended</code> = 사용하지 않는 변수, 잘못된 비교 등 흔한 실수를 찾는 기본 규칙 모음</td></tr>
 <tr><td><code>domains</code></td><td>Next.js와 React 전용 규칙을 켭니다</td></tr>
 <tr><td><code>organizeImports</code></td><td>import 순서를 자동으로 정렬합니다</td></tr>
 </table>
@@ -439,7 +448,7 @@ git commit -m "chore: 로컬 개발환경 구성"</code></pre>
 <tr><th>증상</th><th>확인할 것</th></tr>
 <tr><td>Strapi 기동 시 DB 연결 오류</td><td><code>docker compose ps</code>가 <code>healthy</code>인지, <code>apps/cms/.env</code>의 <code>DATABASE_*</code> 값이 compose.yaml과 같은지</td></tr>
 <tr><td><code>address already in use</code></td><td>같은 포트를 다른 프로그램이 쓰고 있습니다. 해당 프로그램을 멈추거나, compose.yaml의 PC 쪽 포트와 <code>.env</code>의 <code>DATABASE_PORT</code>를 같은 값으로 바꿉니다</td></tr>
-<tr><td><code>pnpm: command not found</code></td><td><code>corepack enable</code>을 실행했는지</td></tr>
+<tr><td><code>pnpm: command not found</code></td><td><code>npx get-pnpm</code> 후 터미널을 새로 열었는지 (설치 경로가 새 터미널부터 반영됩니다)</td></tr>
 </table>
 </details>
 
