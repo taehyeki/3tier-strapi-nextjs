@@ -1,0 +1,21 @@
+# 로컬 개발용 DB 입니다. 앱(web/cms)은 컨테이너가 아니라 pnpm dev 로 직접 실행합니다.
+# 운영(Aurora PostgreSQL)과 같은 메이저 버전을 씁니다.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: strapi
+      POSTGRES_USER: strapi
+      POSTGRES_PASSWORD: strapi # 로컬 전용 값. 운영 비밀번호는 Secrets Manager 가 생성합니다
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data # 컨테이너를 지워도 데이터가 남도록
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strapi -d strapi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:

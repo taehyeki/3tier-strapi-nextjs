@@ -1,3 +1,11 @@
 packages:
   - apps/*
   - infra
+
+# 설치할 때 패키지의 빌드 스크립트(postinstall 등)를 실행할지 정합니다.
+# pnpm 은 기본적으로 모두 막고, 여기에 적히지 않은 패키지가 스크립트를 가지고 있으면 설치를 멈춥니다 (공급망 공격 방지).
+# 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 모두 false(실행 안 함)로 둡니다.
+allowBuilds:
+  "@swc/core": false
+  core-js-pure: false
+  esbuild: false

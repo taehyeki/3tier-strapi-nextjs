@@ -28,3 +28,10 @@ notes/
 .DS_Store
 *.log
 .claude/settings.local.json
+
+# Playwright MCP 작업 로그
+.playwright-mcp/
+
+# 개인 PC 전용 compose 설정
+compose.override.yaml
+
