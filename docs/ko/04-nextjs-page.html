@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 Next.js 화면</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 04</div>
+  <h1>Next.js 화면: 서버에서 안전하게 데이터 가져오기</h1>
+  <p class="lead">03장에서 curl로 한 일을 Next.js 서버가 대신하게 만들고, 받아 온 데이터로 메뉴 페이지를 그립니다. 화면 디자인은 여러분의 사이트에 맞게 자유롭게 바꾸세요.</p>
+</header>
+
+<p class="goal">Next.js 서버가 토큰으로 Strapi의 데이터를 가져와 메뉴 페이지를 표시하고, 토큰이 브라우저에 전달되지 않는 것을 확인한다.</p>
+
+<h2>1. 구조: 누가 토큰을 쓰는가</h2>
+<figure>
+<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="서버 컴포넌트 흐름">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="box" x="10" y="50" width="170" height="90" rx="10"/><text class="t" x="95" y="90" text-anchor="middle">브라우저</text><text class="s" x="95" y="110" text-anchor="middle">토큰을 모름</text>
+  <rect class="hl" x="330" y="30" width="240" height="130" rx="12"/><text class="t" x="450" y="60" text-anchor="middle">Next.js 서버</text><text x="450" y="90" text-anchor="middle">서버 컴포넌트 (page.tsx)</text><text class="s" x="450" y="114" text-anchor="middle">.env.local 의 토큰을 읽는다</text>
+  <rect class="box" x="720" y="50" width="170" height="90" rx="10"/><text class="t" x="805" y="90" text-anchor="middle">Strapi</text><text class="s" x="805" y="110" text-anchor="middle">:1337/api</text>
+  <path class="ar" d="M180 80 H326"/><text class="s" x="190" y="70">① 페이지 요청</text>
+  <path class="ar" d="M570 80 H716"/><text class="s" x="580" y="70">② 토큰 + API 호출</text>
+  <path class="ar" d="M716 115 H574"/><text class="s" x="600" y="135">③ JSON</text>
+  <path class="ar" d="M326 115 H184"/><text class="s" x="195" y="135">④ 완성된 HTML만</text>
+</svg>
+</figure>
+<p>Next.js의 <strong>서버 컴포넌트</strong>는 <strong>서버에서만 실행</strong>되는 React 컴포넌트입니다. App Router에서는 기본적으로 모든 컴포넌트가 서버 컴포넌트입니다. 여기서 토큰을 쓰면 브라우저에는 결과(HTML)만 전달되고, 토큰과 호출 코드는 전달되지 않습니다.</p>
+
+<h2>2. 패키지 설치</h2>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>pnpm -F web add @strapi/client server-only
+pnpm -F web add -D openapi-typescript</code></pre>
+<table>
+<tr><th>패키지</th><th>역할</th></tr>
+<tr><td><code>@strapi/client</code></td><td>Strapi 공식 JavaScript 클라이언트. <code>populate</code> 같은 조건을 객체로 쓰면 요청 URL을 대신 만들어 줍니다</td></tr>
+<tr><td><code>server-only</code></td><td>이 패키지를 import한 파일을 브라우저 쪽 코드에서 import하면 <strong>빌드 오류</strong>가 납니다. 토큰을 다루는 코드가 실수로 브라우저에 섞이는 것을 막습니다 (<a href="https://nextjs.org/docs/app/guides/data-security">Next.js 문서</a>)</td></tr>
+<tr><td><code>openapi-typescript</code></td><td>API 명세(OpenAPI)에서 TypeScript 타입을 자동으로 만듭니다. 3절에서 사용합니다</td></tr>
+</table>
+
+<h2>3. 타입 자동 생성: CMS의 스키마를 프론트에서 다시 쓰지 않는다</h2>
+<p>프론트에서 데이터를 다루려면 "메뉴에는 name, sizes…가 있다"는 <strong>타입</strong>이 필요합니다. 이것을 손으로 쓰면 02장에서 만든 스키마를 한 번 더 적는 셈이고, 스키마를 바꿀 때마다 어긋날 위험이 있습니다. 그래서 <strong>Strapi의 스키마에서 자동으로 생성</strong>합니다.</p>
+<figure>
+<svg class="dg" viewBox="0 0 900 150" role="img" aria-label="타입 생성 흐름">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="box" x="10" y="40" width="190" height="70" rx="10"/><text class="t" x="105" y="70" text-anchor="middle">Strapi 스키마</text><text class="s" x="105" y="90" text-anchor="middle">02장의 schema.json</text>
+  <rect class="box" x="355" y="40" width="190" height="70" rx="10"/><text class="t" x="450" y="70" text-anchor="middle">API 명세</text><text class="s" x="450" y="90" text-anchor="middle">apps/cms/openapi.json</text>
+  <rect class="hl" x="700" y="40" width="190" height="70" rx="10"/><text class="t" x="795" y="70" text-anchor="middle">TypeScript 타입</text><text class="s" x="795" y="90" text-anchor="middle">apps/web/src/types/strapi.d.ts</text>
+  <path class="ar" d="M200 75 H351"/><text class="s" x="210" y="65">strapi openapi generate</text>
+  <path class="ar" d="M545 75 H696"/><text class="s" x="560" y="65">openapi-typescript</text>
+</svg>
+</figure>
+<p>명령을 등록합니다.</p>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>cd apps/cms &amp;&amp; npm pkg set scripts.openapi="strapi openapi generate --output openapi.json" &amp;&amp; cd ../..
+cd apps/web &amp;&amp; npm pkg set scripts.gen:types="openapi-typescript ../cms/openapi.json -o src/types/strapi.d.ts" &amp;&amp; cd ../..
+npm pkg set scripts.gen:types="pnpm -F cms openapi &amp;&amp; pnpm -F web gen:types &amp;&amp; biome format --write apps/web/src/types"</code></pre>
+<p>중간 파일인 <code>openapi.json</code>은 커밋하지 않으므로 <code>.gitignore</code>에 추가합니다.</p>
+<pre><code># Strapi 가 생성하는 OpenAPI 명세 (타입 생성의 중간 산출물)
+apps/cms/openapi.json</code></pre>
+<p>생성합니다. <strong>02장에서 스키마를 바꿀 때마다</strong> 이 명령을 다시 실행합니다.</p>
+<pre><code>pnpm gen:types</code></pre>
+<p>생성된 <code>strapi.d.ts</code> 안에는 02장에서 화면으로 만든 스키마가 그대로 타입으로 들어 있습니다. 예를 들어 사이즈 부품은 이렇습니다.</p>
+<pre><code>    MenuSizeEntry: {
+  /**
+   * @description An enum field
+   * @enum {string}
+   */
+  label: &quot;small&quot; | &quot;medium&quot; | &quot;large&quot;;
+  /** @description An integer field */
+  noodleGrams?: number;
+  /** @description An integer field */
+  price: number;
+};</code></pre>
+<p class="ok">Enumeration으로 만든 값이 <code>"small" | "medium" | "large"</code>로 들어 있습니다. 프론트에서 <code>"smal"</code>처럼 오타를 내면 에디터와 <code>pnpm typecheck</code>가 바로 알려 줍니다.</p>
+<div class="note">Strapi의 OpenAPI 생성 기능은 현재 <strong>실험적(experimental)</strong> 기능입니다(실행하면 경고가 표시됩니다). 앞으로 출력 형식이 바뀔 수 있습니다 (<a href="https://docs.strapi.io/cms/api/openapi">Strapi 문서: OpenAPI</a>).</div>
+
+<h2>4. Strapi 접속: <code>src/lib/strapi.ts</code></h2>
+<pre><code>// Strapi 에 접속하는 클라이언트.
+// &quot;server-only&quot;: 이 파일을 브라우저 쪽 코드에서 import 하면 빌드 오류가 난다.
+// → API 토큰이 브라우저로 보내는 JavaScript 에 섞여 들어가는 사고를 막는다.
+import &quot;server-only&quot;;
+import { strapi } from &quot;@strapi/client&quot;;
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`환경변수 ${name} 가 설정되지 않았습니다`);
+  }
+  return value;
+}
+
+export function createStrapiClient() {
+  return strapi({
+    baseURL: `${requireEnv(&quot;STRAPI_URL&quot;)}/api`,
+    auth: requireEnv(&quot;STRAPI_API_TOKEN&quot;),
+  });
+}
+
+// Strapi 의 이미지 URL 을 브라우저에서 표시할 수 있는 URL 로 만든다.
+// 로컬에서는 &quot;/uploads/xxx.png&quot; 같은 상대 경로가 오므로 Strapi 주소를 붙인다.
+// 운영(S3)에서는 처음부터 &quot;https://...&quot; 절대 URL 이 오므로 그대로 쓴다.
+export function toPublicUrl(url: string): string {
+  return url.startsWith(&quot;http&quot;) ? url : `${requireEnv(&quot;STRAPI_URL&quot;)}${url}`;
+}</code></pre>
+<ul>
+  <li>토큰과 URL은 코드에 쓰지 않고 <strong>환경변수</strong>에서 읽습니다. 로컬은 <code>.env.local</code>(03장), 운영은 Secrets Manager에서 주입합니다(06장). 없으면 바로 오류를 내서 설정 실수를 빨리 알아차리게 합니다.</li>
+  <li><code>toPublicUrl</code>: 로컬 Strapi는 사진 주소를 <code>/uploads/…</code>처럼 돌려주므로 Strapi 주소를 붙입니다.</li>
+</ul>
+
+<h2>5. 데이터 가져오기: <code>src/lib/menu.ts</code></h2>
+<pre><code>// 메뉴 페이지에 필요한 데이터를 Strapi 에서 가져온다.
+import &quot;server-only&quot;;
+import { connection } from &quot;next/server&quot;;
+import { cache } from &quot;react&quot;;
+import type { components, paths } from &quot;@/types/strapi&quot;;
+import { createStrapiClient } from &quot;./strapi&quot;;
+
+// ---- 타입: Strapi 스키마에서 자동 생성된 것을 그대로 쓴다 (pnpm gen:types) ----
+type Schemas = components[&quot;schemas&quot;];
+export type Menu = Schemas[&quot;ApiMenuMenuDocument&quot;];
+export type Topping = Schemas[&quot;ApiToppingToppingDocument&quot;];
+export type Extra = Schemas[&quot;ApiExtraExtraDocument&quot;];
+export type Media = Schemas[&quot;PluginUploadFileDocument&quot;];
+export type Shop =
+  paths[&quot;/shop&quot;][&quot;get&quot;][&quot;responses&quot;][200][&quot;content&quot;][&quot;application/json&quot;][&quot;data&quot;];
+
+// ---- 조회 ----
+// connection(): &quot;빌드할 때가 아니라 요청이 올 때 실행하라&quot;는 표시.
+//   - 빌드(CI) 시점에는 Strapi 가 없어도 빌드가 성공한다
+//   - 토큰·URL 을 실행 시점의 환경변수에서 읽으므로, 같은 이미지를 어느 환경에서든 쓸 수 있다
+//   - 관리자 화면에서 Publish 하면 다음 요청부터 바로 반영된다
+// cache: 한 요청 안에서 여러 번 불러도 Strapi 호출은 한 번으로 합친다
+// (페이지 본문과 &lt;title&gt; 양쪽에서 가게 정보를 쓰기 때문)
+export const getShop = cache(async () =&gt; {
+  await connection();
+  const res = await createStrapiClient()
+    .single(&quot;shop&quot;)
+    .find({ populate: [&quot;photo&quot;] });
+  return res.data as Shop;
+});
+
+export async function getMenuPage() {
+  await connection();
+  const client = createStrapiClient();
+  // API 4개를 동시에 호출한다 (하나씩 순서대로 부르는 것보다 빠르다)
+  const [shop, menus, toppings, extras] = await Promise.all([
+    getShop(),
+    client.collection(&quot;menus&quot;).find({
+      sort: &quot;createdAt:asc&quot;,
+      populate: {
+        photo: true,
+        sizes: true,
+        toppings: { fields: [&quot;name&quot;] },
+        extras: { fields: [&quot;name&quot;] },
+      },
+    }),
+    client.collection(&quot;toppings&quot;).find({
+      sort: &quot;createdAt:asc&quot;,
+      populate: { levels: true },
+    }),
+    client.collection(&quot;extras&quot;).find({
+      sort: &quot;createdAt:asc&quot;,
+      populate: [&quot;photo&quot;],
+    }),
+  ]);
+  return {
+    shop,
+    menus: menus.data as Menu[],
+    toppings: toppings.data as Topping[],
+    extras: extras.data as Extra[],
+  };
+}</code></pre>
+<table>
+<tr><th>포인트</th><th>의미</th></tr>
+<tr><td><code>populate</code></td><td>03장의 <code>?populate=*</code>와 같은 역할입니다. 사진·사이즈·토핑처럼 <strong>함께 가져올 것</strong>을 지정합니다</td></tr>
+<tr><td><code>await connection()</code></td><td>"빌드할 때가 아니라 <strong>손님이 페이지를 열 때</strong> Strapi에 물어보라"는 표시입니다. 그래서 관리자 화면에서 Publish한 내용이 새로고침만으로 반영되고, 06장의 자동 빌드에서 Strapi가 없어도 빌드가 됩니다</td></tr>
+</table>
+<p>그 밖의 <code>Promise.all</code>(여러 요청을 동시에 보내기)과 <code>cache</code>(같은 요청을 한 번으로 합치기)는 속도를 위한 것이라, 몰라도 동작을 이해하는 데 지장은 없습니다.</p>
+
+<h2>6. 화면: 받아 온 값을 화면에 넣는다</h2>
+<p>여기가 이 장의 핵심입니다. <strong>"Strapi에서 받아 온 값이 화면의 어디에 나오는가"</strong>만 따라가 봅니다.</p>
+<div class="note">아래 코드는 이해하기 쉽도록 <strong>디자인 설정(<code>className</code> 등)을 뺀 요약</strong>입니다. 실제 <code>page.tsx</code>에는 디자인 설정이 들어 있습니다. 디자인은 여러분의 사이트에 맞게 자유롭게 만들면 되고, 여러분의 화면이 이 자료와 달라도 괜찮습니다.</div>
+
+<h3>① 데이터를 받는다</h3>
+<pre><code>export default async function Page() {
+  const { shop, menus, toppings, extras } = await getMenuPage();
+  ...
+}</code></pre>
+<p>이 한 줄에서 <strong>Next.js 서버가 토큰을 붙여 Strapi에 요청</strong>합니다(03장의 curl과 같은 일). 결과는 네 개의 상자에 담깁니다.</p>
+<table>
+<tr><th>상자</th><th>들어 있는 것</th></tr>
+<tr><td><code>shop</code></td><td>가게 정보 1건 (Single Type)</td></tr>
+<tr><td><code>menus</code></td><td>메뉴 목록 (ラーメン, つけ麺)</td></tr>
+<tr><td><code>toppings</code></td><td>무료 토핑 목록</td></tr>
+<tr><td><code>extras</code></td><td>추가 메뉴 목록</td></tr>
+</table>
+<p>이제 이 값을 HTML 안의 <code>{ }</code> 자리에 넣으면 화면이 됩니다.</p>
+
+<h3>② 가게 이름</h3>
+<pre><code>&lt;h1&gt;{shop.name}&lt;/h1&gt;
+&lt;p&gt;{shop.catchphrase}&lt;/p&gt;</code></pre>
+<figure><img src="../assets/img/web/part-shop-name.png" alt="가게 이름 부분"><figcaption><code>shop.name</code> = 관리자 화면 Shop의 name, <code>shop.catchphrase</code> = catchphrase</figcaption></figure>
+
+<h3>③ 메뉴 카드</h3>
+<pre><code>{menus.map((menu) =&gt; (          // 메뉴 수만큼 아래를 반복
+  &lt;article&gt;
+    &lt;Photo media={menu.photo} /&gt;   // 사진
+    &lt;h3&gt;{menu.name}&lt;/h3&gt;           // ラーメン
+    &lt;p&gt;{menu.description}&lt;/p&gt;      // 설명
+    {menu.sizes.map((size) =&gt; (   // 사이즈 수만큼 반복
+      &lt;tr&gt;
+        &lt;th&gt;{SIZE_LABEL[size.label]}&lt;/th&gt;   // small → 小
+        &lt;td&gt;麺 {size.noodleGrams}g&lt;/td&gt;
+        &lt;td&gt;{yen(size.price)}&lt;/td&gt;          // 800 → 800円
+      &lt;/tr&gt;
+    ))}
+  &lt;/article&gt;
+))}</code></pre>
+<figure><img src="../assets/img/web/part-menu-card.png" alt="메뉴 카드" style="max-width:420px"><figcaption>관리자 화면에서 메뉴를 하나 더 Publish하면, 코드를 고치지 않아도 카드가 하나 늘어납니다</figcaption></figure>
+<p><code>SIZE_LABEL</code>은 02장에서 <code>small</code>처럼 영어로 저장한 값을 화면용 글자 「小」로 바꾸는 표입니다.</p>
+<pre><code>const SIZE_LABEL = { small: "小", medium: "中", large: "大" };</code></pre>
+
+<h3>④ 나머지 부분</h3>
+<p>같은 방식으로 값을 넣습니다.</p>
+<table>
+<tr><th>화면</th><th>코드에서 넣는 값</th></tr>
+<tr><td>무료 토핑</td><td><code>topping.name</code>, <code>topping.description</code>, 그리고 <code>topping.levels</code>의 <code>label</code>(ナシ〜マシマシ)을 반복</td></tr>
+<tr><td>추가 메뉴</td><td><code>extra.photo</code>, <code>extra.name</code>, <code>extra.price</code></td></tr>
+<tr><td>가게 정보</td><td><code>shop.address</code>, <code>shop.businessHours</code>, <code>shop.closedDays</code>, <code>shop.ticketRule</code></td></tr>
+</table>
+<figure><img src="../assets/img/web/part-toppings.png" alt="무료 토핑 부분"></figure>
+<figure><img src="../assets/img/web/part-extras.png" alt="추가 메뉴 부분"></figure>
+<figure><img src="../assets/img/web/part-shop-info.png" alt="가게 정보 부분"></figure>
+
+<h2>7. 화면 확인</h2>
+<p class="where">실행 위치: 저장소 루트 (터미널 3개)</p>
+<pre><code>pnpm dev:db
+pnpm dev:cms
+pnpm dev:web</code></pre>
+<p class="ok">http://localhost:3000 을 열면 6절에서 본 부분들이 한 페이지에 표시됩니다. 관리자 화면에서 가격을 바꾸고 Publish한 뒤 새로고침하면 바로 반영됩니다.</p>
+
+<h2>8. 토큰이 브라우저에 없는지 확인</h2>
+<p>이 장의 핵심입니다. 브라우저의 개발자도구로 직접 확인합니다.</p>
+<ol class="steps">
+  <li>개발자도구(F12) → <strong>Network</strong> 탭을 열고 페이지를 새로고침합니다. 요청 목록에 <code>localhost:1337/api</code>가 <strong>하나도 없습니다</strong>. 브라우저는 Strapi API를 직접 부르지 않고, 사진(<code>/uploads/…</code>)만 받아 옵니다.</li>
+  <li>페이지 소스 보기(<code>Ctrl+U</code> / <code>⌘+Option+U</code>)에서 토큰의 앞부분을 검색합니다. <strong>찾을 수 없습니다</strong>.</li>
+</ol>
+<details>
+<summary>만약 토큰을 <code>NEXT_PUBLIC_</code> 변수로 만들었거나, 브라우저 쪽 코드(<code>"use client"</code>)에서 Strapi를 호출했다면?</summary>
+<p>토큰이 브라우저로 보내는 JavaScript에 포함되고, Network 탭에 Strapi 호출이 그대로 보입니다. 누구나 토큰을 복사해서 API를 쓸 수 있게 됩니다. <code>server-only</code>를 넣어 두었기 때문에, <code>lib/strapi.ts</code>를 브라우저 쪽 코드에서 import하면 빌드 단계에서 오류가 나서 이런 실수를 막을 수 있습니다.</p>
+</details>
+
+<h2>9. 검사와 빌드, 커밋</h2>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>pnpm format
+pnpm lint
+pnpm typecheck
+pnpm -F web build</code></pre>
+<pre><code>Route (app)
+┌ ƒ /
+└ ○ /_not-found
+
+ƒ  (Dynamic)  server-rendered on demand</code></pre>
+<p class="ok"><code>/</code>가 <strong>ƒ (Dynamic)</strong>로 표시됩니다. "요청이 올 때 서버에서 만든다"는 뜻입니다. 빌드할 때 Strapi를 부르지 않으므로, 06장의 자동 빌드(CI)에서도 그대로 빌드됩니다.</p>
+<div class="state"><div class="h">📁 04장 완료 시점의 apps/web (주요 파일)</div><pre>apps/web/
+├── .env.local            토큰 (커밋하지 않음, 03장)
+├── .env.example
+└── src/
+    ├── app/
+    │   ├── layout.tsx    (변경) lang="ja", 기본 제목
+    │   └── <mark>page.tsx</mark>      (변경) 메뉴 페이지
+    ├── lib/
+    │   ├── <mark>strapi.ts</mark>     (새로) Strapi 접속
+    │   └── <mark>menu.ts</mark>       (새로) 데이터 가져오기
+    └── types/
+        └── <mark>strapi.d.ts</mark>   (자동 생성) 스키마의 타입. 커밋함
+apps/cms/openapi.json     (자동 생성) 중간 파일. 커밋하지 않음</pre></div>
+<pre><code>git add .
+git commit -m "feat(web): 메뉴 페이지"</code></pre>
+<p><code>git status</code>에 <code>.env.local</code>이 나오지 않는 것을 확인합니다(토큰이 커밋되지 않음).</p>
+
+<nav class="pager"><a href="03-data-and-api.html">← 03 데이터 입력과 API</a><span>05 GitHub와 CI →</span></nav>
+</main>
+</body>
+</html>

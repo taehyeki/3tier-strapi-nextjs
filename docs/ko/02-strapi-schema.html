@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 Strapi 스키마 설계</title>
+<link rel="stylesheet" href="../assets/guide.css">
+<style>
+</style>
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 02</div>
+  <h1>Strapi 스키마 설계: 라멘 가게 메뉴 만들기</h1>
+  <p class="lead">"보여주고 싶은 화면"에서 거꾸로 생각해서 데이터 구조를 정하고, 관리자 화면에서 만들어 봅니다.</p>
+</header>
+
+<p class="goal">가게 정보, 메뉴, 사이즈, 토핑, 추가 메뉴를 Strapi 스키마로 정의하고, 화면 조작이 <strong>파일</strong>로 저장되는 것을 확인한다.</p>
+
+<h2>1. 먼저 "무엇을 보여줄지" 정한다</h2>
+<p>이 자료에서는 예로 キム系 라멘 가게 <strong>「麺屋ヤマモリ」</strong>의 메뉴 페이지를 만듭니다. 여러분은 자신이 만들고 싶은 사이트로 바꿔서 같은 순서로 생각해 보세요. <strong>이 장에서는 코드를 한 줄도 쓰지 않습니다.</strong> 모두 Strapi 관리자 화면에서 합니다. 화면에 필요한 정보를 적어 보면 다음과 같습니다.</p>
+<ul>
+  <li>가게 이름, 주소, 영업시간, 정기휴일, 식권 규칙, 가게 사진</li>
+  <li>메뉴(ラーメン, つけ麺)와 각 메뉴의 사이즈(小/中/大)별 면 양과 가격</li>
+  <li>무료 토핑(ニンニク・ヤサイ・アブラ・カラメ)과 고를 수 있는 양(ナシ/フツウ/マシ/マシマシ)</li>
+  <li>유료 추가(ライス, チャーシュー)와 가격</li>
+</ul>
+
+<h2>2. Strapi의 "그릇" 4가지 이해하기</h2>
+<p>가게 앞에 걸린 <strong>메뉴판</strong>을 떠올려 보세요. 메뉴판에 적힌 정보는 성격에 따라 4가지로 나뉩니다. Strapi에서 데이터를 만든다는 것은 <strong>이 메뉴판을 부품별로 나눠 정리하는 것</strong>입니다.</p>
+
+<figure>
+<svg class="dg" viewBox="0 0 900 610" role="img" aria-label="메뉴판으로 보는 4가지 그릇">
+  <defs>
+    <style>
+      .sg{fill:none;stroke:#e8590c;stroke-width:2.5;stroke-dasharray:7 4}
+      .cl{fill:var(--card);stroke:#1c7ed6;stroke-width:2.5}
+      .cp{fill:color-mix(in srgb,#2f9e44 10%,transparent);stroke:#2f9e44;stroke-width:2;stroke-dasharray:5 3}
+      .rl{stroke:#7048e8;stroke-width:2.2;fill:none;stroke-dasharray:6 4}
+      .pill-s{fill:#e8590c}.pill-c{fill:#1c7ed6}.pill-p{fill:#2f9e44}.pill-r{fill:#7048e8}
+      .pt{fill:#fff;font-size:12.5px;font-weight:700}
+      .big{font-size:24px;font-weight:800}
+    </style>
+  </defs>
+  <rect x="10" y="10" width="880" height="590" rx="18" style="fill:var(--code);stroke:var(--line)"/>
+  <!-- Single -->
+  <rect class="sg" x="40" y="34" width="820" height="92" rx="10"/>
+  <text x="64" y="78" style="font-size:24px;font-weight:800">麺屋ヤマモリ</text>
+  <text x="64" y="106" class="s">キム系ラーメン ・ 営業 11:00〜15:00 ・ 定休日 水曜 ・ 東京都〇〇区…</text>
+  <rect class="pill-s" x="706" y="46" width="140" height="26" rx="13"/><text class="pt" x="776" y="64" text-anchor="middle">① Single Type</text>
+  <!-- Collection cards -->
+  <rect class="cl" x="60" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/ramen.png" x="75" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="220" y="200" style="font-size:18px">ラーメン</text><text class="s" x="220" y="222">極太麺・豚骨醤油</text>
+  <rect class="cp" x="75" y="286" width="270" height="104" rx="8"/>
+  <text x="95" y="314">小　麺300g　800円</text><text x="95" y="340">中　麺400g　900円</text><text x="95" y="366">大　麺500g　1000円</text>
+  <rect class="cl" x="540" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/tsukemen.png" x="555" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="700" y="200" style="font-size:18px">つけ麺</text><text class="s" x="700" y="222">濃厚つけダレ</text>
+  <rect class="cp" x="555" y="286" width="270" height="104" rx="8"/>
+  <text x="575" y="314">小　麺300g　900円</text><text x="575" y="340">中　麺400g　1000円</text><text x="575" y="366">大　麺500g　1100円</text>
+  <rect class="pill-c" x="380" y="196" width="140" height="26" rx="13"/><text class="pt" x="450" y="214" text-anchor="middle">② Collection</text>
+  <text class="s" x="450" y="240" text-anchor="middle">같은 모양의 카드가</text><text class="s" x="450" y="256" text-anchor="middle">여러 장</text>
+  <rect class="pill-p" x="380" y="322" width="140" height="26" rx="13"/><text class="pt" x="450" y="340" text-anchor="middle">③ Component</text>
+  <text class="s" x="450" y="366" text-anchor="middle">카드 안에 붙은 부품</text>
+  <!-- bottom collections -->
+  <rect class="cl" x="60" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="80" y="518">追加 (有料)</text><text x="80" y="546">ライス ＋100円</text><text x="80" y="570">チャーシュー ＋200円</text>
+  <rect class="cl" x="500" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="520" y="518">無料トッピング</text><text x="520" y="546">ニンニク・ヤサイ・アブラ・カラメ</text><text x="520" y="570" class="s">量: ナシ / フツウ / マシ / マシマシ</text>
+  <!-- relations -->
+  <path class="rl" d="M210 406 L230 488"/><path class="rl" d="M210 406 L670 488"/>
+  <path class="rl" d="M690 406 L230 488"/><path class="rl" d="M690 406 L670 488"/>
+  <rect class="pill-r" x="380" y="424" width="140" height="26" rx="13"/><text class="pt" x="450" y="442" text-anchor="middle">④ Relation</text>
+</svg>
+<figcaption>메뉴판을 4가지 그릇으로 나눈 모습. 색이 곧 그릇의 종류입니다</figcaption>
+</figure>
+
+<table>
+<tr><th>그릇</th><th>메뉴판에서는</th><th>한마디로</th></tr>
+<tr><td><strong style="color:#e8590c">① Single Type</strong></td><td>맨 위의 가게 이름·영업시간</td><td><strong>하나뿐인 정보.</strong> 두 번째를 만들 일이 없습니다</td></tr>
+<tr><td><strong style="color:#1c7ed6">② Collection Type</strong></td><td>ラーメン 카드, つけ麺 카드, 추가 메뉴, 토핑</td><td><strong>같은 모양으로 여러 개.</strong> 새 메뉴가 생기면 카드를 한 장 더 추가합니다</td></tr>
+<tr><td><strong style="color:#2f9e44">③ Component</strong></td><td>각 카드 안의 「小 800円 / 中 900円 / 大 1000円」</td><td><strong>그 카드에 붙은 부품.</strong> 카드에서 떼어 내면 "무엇의 小인지" 알 수 없습니다</td></tr>
+<tr><td><strong style="color:#7048e8">④ Relation</strong></td><td>카드와 추가 메뉴·토핑을 잇는 선</td><td><strong>따로 한 번만 적어 두고 선으로 연결.</strong> ライス 가격을 바꾸면 모든 메뉴에 반영됩니다</td></tr>
+</table>
+
+<details>
+<summary>왜 「사이즈」는 선(Relation)이 아니라 부품(Component)인가요?</summary>
+<p>그림을 보면 ラーメン의 小는 800円, つけ麺의 小는 900円입니다. 사이즈 가격은 <strong>메뉴마다 다르기</strong> 때문에 공유할 것이 없습니다. 그래서 각 카드 안에 부품으로 붙입니다.</p>
+<p>반대로 「ライス ＋100円」은 어느 메뉴에 붙든 <strong>똑같습니다</strong>. 각 카드에 따로 적어 두면 가격이 오를 때 모든 카드를 고쳐야 하므로, 한 곳에 적고 선으로 연결합니다.</p>
+</details>
+
+<h3>여러분의 사이트라면? 3가지 질문으로 고른다</h3>
+<ol class="steps">
+  <li><strong>하나뿐인가?</strong> → <strong style="color:#e8590c">Single Type</strong></li>
+  <li><strong>같은 모양으로 여러 개 있고, 목록으로 관리하는가?</strong> → <strong style="color:#1c7ed6">Collection Type</strong></li>
+  <li><strong>그 정보가 어딘가에 "붙어 있는" 것인가, 여러 곳에서 "공유하는" 것인가?</strong> → 붙어 있으면 <strong style="color:#2f9e44">Component</strong>, 공유하면 Collection으로 따로 만들고 <strong style="color:#7048e8">Relation</strong>으로 연결</li>
+</ol>
+<table>
+<tr><th>사이트 종류</th><th>Single Type</th><th>Collection Type</th><th>Component</th><th>Relation</th></tr>
+<tr><td>회사 홈페이지</td><td>회사 소개</td><td>공지사항, 직원</td><td>직원의 SNS 링크 목록</td><td>공지사항 → 작성한 직원</td></tr>
+<tr><td>블로그</td><td>블로그 소개</td><td>글, 카테고리, 태그</td><td>글 안의 "관련 링크" 목록</td><td>글 ↔ 태그</td></tr>
+<tr><td>온라인 쇼핑</td><td>배송 안내</td><td>상품, 브랜드</td><td>상품의 색상·사이즈별 재고</td><td>상품 → 브랜드</td></tr>
+</table>
+
+<h3>선(Relation)을 긋는 방법은 3가지</h3>
+<p>선을 그을 때는 "한쪽 하나가 반대쪽 몇 개와 이어지는가"를 정합니다.</p>
+<figure>
+<svg class="dg" viewBox="0 0 900 230" role="img" aria-label="관계의 종류">
+  <defs><style>.nd{fill:var(--card);stroke:var(--fg);stroke-width:1.5}.ln{stroke:#7048e8;stroke-width:2.2}</style></defs>
+  <text class="t" x="150" y="24" text-anchor="middle">1 대 1</text>
+  <rect class="nd" x="40" y="50" width="90" height="34" rx="8"/><text x="85" y="72" text-anchor="middle">사원 A</text>
+  <rect class="nd" x="40" y="110" width="90" height="34" rx="8"/><text x="85" y="132" text-anchor="middle">사원 B</text>
+  <rect class="nd" x="170" y="50" width="90" height="34" rx="8"/><text x="215" y="72" text-anchor="middle">사원증 1</text>
+  <rect class="nd" x="170" y="110" width="90" height="34" rx="8"/><text x="215" y="132" text-anchor="middle">사원증 2</text>
+  <path class="ln" d="M130 67H170M130 127H170"/>
+  <text class="s" x="150" y="180" text-anchor="middle">서로 딱 하나씩</text>
+
+  <text class="t" x="450" y="24" text-anchor="middle">1 대 다</text>
+  <rect class="nd" x="330" y="90" width="100" height="34" rx="8"/><text x="380" y="112" text-anchor="middle">카테고리 「면」</text>
+  <rect class="nd" x="480" y="40" width="90" height="34" rx="8"/><text x="525" y="62" text-anchor="middle">ラーメン</text>
+  <rect class="nd" x="480" y="90" width="90" height="34" rx="8"/><text x="525" y="112" text-anchor="middle">つけ麺</text>
+  <rect class="nd" x="480" y="140" width="90" height="34" rx="8"/><text x="525" y="162" text-anchor="middle">油そば</text>
+  <path class="ln" d="M430 107L480 57M430 107H480M430 107L480 157"/>
+  <text class="s" x="450" y="210" text-anchor="middle">카테고리 하나에 메뉴 여러 개 (메뉴는 카테고리 하나에만)</text>
+
+  <text class="t" x="750" y="24" text-anchor="middle">다 대 다</text>
+  <rect class="nd" x="640" y="60" width="90" height="34" rx="8"/><text x="685" y="82" text-anchor="middle">ラーメン</text>
+  <rect class="nd" x="640" y="120" width="90" height="34" rx="8"/><text x="685" y="142" text-anchor="middle">つけ麺</text>
+  <rect class="nd" x="780" y="60" width="100" height="34" rx="8"/><text x="830" y="82" text-anchor="middle">ライス</text>
+  <rect class="nd" x="780" y="120" width="100" height="34" rx="8"/><text x="830" y="142" text-anchor="middle">チャーシュー</text>
+  <path class="ln" d="M730 77H780M730 77L780 137M730 137L780 77"/>
+  <text class="s" x="760" y="190" text-anchor="middle">양쪽 모두 여러 개와 이어짐</text>
+</svg>
+<figcaption>이번 라멘 가게의 「메뉴 ↔ 추가 메뉴」, 「메뉴 ↔ 토핑」은 다 대 다입니다</figcaption>
+</figure>
+
+<h3>이번 라멘 가게에 적용하면</h3>
+<table>
+<tr><th>정보</th><th>그릇</th><th>이유</th></tr>
+<tr><td>가게 정보</td><td>Single Type <code>Shop</code></td><td>사이트에 하나뿐</td></tr>
+<tr><td>메뉴</td><td>Collection Type <code>Menu</code></td><td>여러 개, 목록으로 관리</td></tr>
+<tr><td>사이즈와 가격</td><td>Component <code>menu.size</code> (반복)</td><td>메뉴마다 값이 다른 부품</td></tr>
+<tr><td>무료 토핑</td><td>Collection Type <code>Topping</code></td><td>여러 메뉴에서 공유</td></tr>
+<tr><td>토핑 양(ナシ〜マシマシ)</td><td>Component <code>menu.level</code> (반복)</td><td>각 토핑에 딸린 선택지</td></tr>
+<tr><td>유료 추가</td><td>Collection Type <code>Extra</code></td><td>여러 메뉴에서 공유, 가격을 한 곳에서 관리</td></tr>
+<tr><td>메뉴 ↔ 토핑, 메뉴 ↔ 추가</td><td>Relation (다 대 다)</td><td>메뉴마다 고를 수 있는 것이 다르고, 서로 여러 개</td></tr>
+</table>
+<p>여러분의 사이트를 설계할 때도 먼저 <strong>"화면에 보여줄 정보"를 적고</strong>, 위의 3가지 질문으로 그릇을 고르면 됩니다.</p>
+
+
+<h2>3. 관리자 계정 만들기</h2>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>pnpm dev:db    # DB 컨테이너 기동
+pnpm dev:cms   # Strapi 기동 → http://localhost:1337/admin</code></pre>
+<p>처음 접속하면 관리자 등록 화면이 나옵니다. 로컬 전용 계정이라 아무 값이나 넣어도 됩니다.</p>
+<figure><img src="../assets/img/schema/01-register-admin.png" alt="관리자 등록 화면"><figcaption>비밀번호 규칙: 8자 이상, 대문자·소문자·숫자 포함</figcaption></figure>
+<p class="ok">대시보드가 표시됩니다. 왼쪽 메뉴에서 <strong>Content-Type Builder</strong>(블록 모양 아이콘)를 엽니다.</p>
+<figure><img src="../assets/img/schema/03-ctb-empty.png" alt="비어 있는 Content-Type Builder"><figcaption>처음에는 기본 제공되는 <code>User</code>만 있습니다</figcaption></figure>
+
+<div class="note">Content-Type Builder는 <strong>로컬(develop 모드)에서만</strong> 쓸 수 있습니다. 운영 환경에서는 잠겨 있습니다. 스키마는 반드시 로컬에서 바꾸고 Git으로 배포합니다.</div>
+
+<h2>4. Shop (Single Type)</h2>
+<ol class="steps">
+  <li><strong>SINGLE TYPES</strong> 옆의 <code>+</code> → Display name에 <code>Shop</code>을 입력하고 Continue를 누릅니다. API ID는 자동으로 채워집니다.</li>
+  <li>필드 종류 목록에서 <strong>Text</strong>를 고릅니다.</li>
+  <li>Name에 <code>name</code>을 입력하고 <strong>ADVANCED SETTINGS → Required field</strong>를 체크한 뒤 "Add another field"를 누릅니다.</li>
+  <li>같은 방법으로 아래 필드를 추가하고 Finish를 누릅니다.</li>
+</ol>
+<figure><img src="../assets/img/schema/06-field-types.png" alt="필드 종류 선택"><figcaption>필드 종류 목록. 이번에는 Text, Number, Media, Enumeration, Relation, Component를 씁니다</figcaption></figure>
+<figure><img src="../assets/img/schema/08-required.png" alt="Required 설정"><figcaption>필수 항목은 ADVANCED SETTINGS 탭에서 설정합니다</figcaption></figure>
+<table>
+<tr><th>Name</th><th>종류</th><th>설정</th><th>용도</th></tr>
+<tr><td>name</td><td>Text (Short)</td><td>Required</td><td>가게 이름</td></tr>
+<tr><td>catchphrase</td><td>Text (Short)</td><td></td><td>한 줄 소개</td></tr>
+<tr><td>address</td><td>Text (Short)</td><td></td><td>주소</td></tr>
+<tr><td>businessHours</td><td>Text (<strong>Long</strong>)</td><td></td><td>영업시간(여러 줄)</td></tr>
+<tr><td>closedDays</td><td>Text (Short)</td><td></td><td>정기휴일</td></tr>
+<tr><td>ticketRule</td><td>Text (<strong>Long</strong>)</td><td></td><td>식권·콜 규칙 안내</td></tr>
+<tr><td>photo</td><td>Media (<strong>Single</strong>)</td><td>ADVANCED → 허용 타입: Images만</td><td>가게 사진</td></tr>
+</table>
+<figure><img src="../assets/img/schema/11-media-images-only.png" alt="Media 허용 타입"><figcaption>사진 필드에 PDF나 동영상이 올라가지 않도록 Images만 허용합니다</figcaption></figure>
+<figure><img src="../assets/img/schema/12-shop-fields.png" alt="Shop 필드 목록"><figcaption>아직 <strong>저장 전</strong>입니다(NEW 표시). 저장은 마지막에 한 번에 합니다</figcaption></figure>
+
+<h2>5. 사이즈 부품 <code>menu.size</code> (Component)</h2>
+<ol class="steps">
+  <li><strong>COMPONENTS</strong> 옆의 <code>+</code> → Display name에 <code>Size</code>, 카테고리에 <code>menu</code>(새로 입력)를 넣고 아이콘을 골라 Continue를 누릅니다.</li>
+  <li>아래 필드를 추가합니다.</li>
+</ol>
+<figure><img src="../assets/img/schema/13-component-create.png" alt="컴포넌트 생성"><figcaption>카테고리는 부품을 묶는 폴더입니다. <code>menu.size</code>라는 이름이 됩니다</figcaption></figure>
+<table>
+<tr><th>Name</th><th>종류</th><th>설정</th></tr>
+<tr><td>label</td><td>Enumeration</td><td>값: <code>small</code> / <code>medium</code> / <code>large</code>(한 줄에 하나), Required</td></tr>
+<tr><td>noodleGrams</td><td>Number (integer)</td><td>면 양(g)</td></tr>
+<tr><td>price</td><td>Number (integer)</td><td>Required</td></tr>
+</table>
+<div class="note">Enumeration 값에 <code>小</code> <code>中</code> <code>大</code>를 그대로 넣으면 오류가 납니다. Enumeration 값은 화면에 보이는 글자가 아니라 <strong>프로그램이 쓰는 식별자</strong>라서 영문으로 정합니다. "小/中/大"라는 표시는 화면(Next.js) 쪽에서 붙입니다.</div>
+<figure><img src="../assets/img/schema/14-enum-error.png" alt="Enumeration 오류"><figcaption>"Values should have at least one alphabetical character..." 오류</figcaption></figure>
+
+<h2>6. 토핑 양 부품 <code>menu.level</code> (Component)</h2>
+<p>같은 방법으로 Display name은 <code>Level</code>, 카테고리는 <code>menu</code>로 만들고, 필드는 <code>label</code>(Text, Required) 하나만 둡니다. 값은 ナシ・フツウ・マシ・マシマシ처럼 자유롭게 입력하는 글자입니다.</p>
+
+<h2>7. Topping (Collection Type)</h2>
+<ol class="steps">
+  <li><strong>COLLECTION TYPES</strong> 옆의 <code>+</code> → <code>Topping</code>을 만듭니다.</li>
+  <li><code>name</code>(Text, Required)과 <code>description</code>(Text Long)을 추가합니다.</li>
+  <li><strong>Component</strong> → "Use an existing component" → Select a component를 누르고, Name은 <code>levels</code>, 컴포넌트는 <code>menu - Level</code>, Type은 <strong>Repeatable component</strong>를 고릅니다.</li>
+</ol>
+<figure><img src="../assets/img/schema/20-repeatable.png" alt="반복 컴포넌트"><figcaption>Repeatable = 부품을 여러 개 붙일 수 있습니다(ナシ, フツウ, マシ, マシマシ)</figcaption></figure>
+
+<h2>8. Extra (Collection Type)</h2>
+<p><code>name</code>(Text, Required), <code>price</code>(Number integer, Required), <code>photo</code>(Media Single, Images만)를 추가합니다. 조작은 지금까지와 같습니다.</p>
+
+<h2>9. Menu (Collection Type): 관계 연결</h2>
+<ol class="steps">
+  <li><code>Menu</code>를 만들고 <code>name</code>(Text, Required), <code>description</code>(Text Long), <code>photo</code>(Media Single, Images만)를 추가합니다.</li>
+  <li><strong>Component</strong> → 기존 <code>menu - Size</code>를 Name <code>sizes</code>, <strong>Repeatable</strong>로 추가합니다.</li>
+  <li><strong>Relation</strong>을 고르고, 오른쪽 대상을 <code>Extra</code>로 바꾼 뒤 가운데 아이콘에서 <strong>has and belongs to many</strong>(다대다)를 고릅니다. 필드 이름은 왼쪽 <code>extras</code>, 오른쪽 <code>menus</code>로 합니다.</li>
+  <li>같은 방법으로 <code>Topping</code>에 대한 다대다 관계 <code>toppings</code> / <code>menus</code>를 추가합니다.</li>
+</ol>
+<figure><img src="../assets/img/schema/24-relation-many-to-many.png" alt="다대다 관계 설정"><figcaption>"Menus has and belongs to many Extras": 메뉴 하나에 추가 메뉴 여럿, 추가 메뉴 하나도 여러 메뉴에 붙는다</figcaption></figure>
+<details>
+<summary>관계 아이콘 6가지는 무엇이 다른가요?</summary>
+<p>아이콘마다 "몇 대 몇인가(1:1, 1:N, N:N)"와 "한쪽에서만 참조하는가, 양쪽에서 서로 아는가"가 다릅니다. 아이콘을 누르면 바로 아래에 <em>"Menus has and belongs to many Extras"</em>처럼 <strong>문장으로 의미가 표시</strong>되므로, 그 문장이 의도와 맞는지 소리 내어 읽어 보고 고르면 됩니다.</p>
+</details>
+
+<h2>10. 저장: 화면 조작이 "파일"이 된다</h2>
+<p>왼쪽 위의 <strong>Save</strong>를 누릅니다. Strapi가 서버를 재시작하고 페이지가 자동으로 새로고침됩니다.</p>
+<figure><img src="../assets/img/schema/26-saving.png" alt="재시작 대기"><figcaption>"Waiting for restart…": 이 사이에 Strapi가 파일을 쓰고 DB 테이블을 만듭니다</figcaption></figure>
+<p>터미널에서 확인해 봅니다.</p>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>git status apps/cms/src</code></pre>
+<div class="state"><div class="h">📁 저장 후 apps/cms/src 의 상태</div><pre>apps/cms/src/
+├── api/
+│   ├── <mark>extra/</mark>
+│   ├── <mark>menu/</mark>
+│   │   ├── content-types/menu/<mark>schema.json</mark>   ← Menu의 설계도 (화면에서 고른 필드가 그대로 적힘)
+│   │   ├── controllers/menu.ts             ┐
+│   │   ├── routes/menu.ts                  ├ API를 자동으로 만드는 코드 (손대지 않음)
+│   │   └── services/menu.ts                ┘
+│   ├── <mark>shop/</mark>
+│   └── <mark>topping/</mark>                              (menu와 같은 구성)
+└── components/
+    └── <mark>menu/</mark>
+        ├── <mark>level.json</mark>                        ← 부품 Level의 설계도
+        └── <mark>size.json</mark>                         ← 부품 Size의 설계도</pre></div>
+<details>
+<summary><code>schema.json</code> 안을 보기</summary>
+<pre><code>"sizes":    { "type": "component", "component": "menu.size", "repeatable": true },
+"extras":   { "type": "relation", "relation": "manyToMany", "target": "api::extra.extra", "inversedBy": "menus" },
+"toppings": { "type": "relation", "relation": "manyToMany", "target": "api::topping.topping", "inversedBy": "menus" }</code></pre>
+<p>화면에서 고른 내용이 그대로 JSON으로 적혀 있습니다.</p>
+</details>
+<p class="ok"><code>git status</code>에 위의 초록색 폴더가 새 파일로 표시됩니다.</p>
+
+<div class="note"><strong>여기가 이번 연수의 핵심입니다.</strong> 이 <em>파일(스키마)</em>은 Git → PR → CI/CD를 거쳐 운영에 배포되고, 운영 Strapi가 기동할 때 테이블을 만듭니다. 하지만 관리자 화면에서 입력한 <em>데이터</em>는 각 환경의 DB에만 있고 배포되지 않습니다.</div>
+
+<h2>11. 커밋</h2>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>git add .
+git commit -m "feat(cms): 메뉴 스키마 추가"</code></pre>
+<p class="ok">커밋되는 것은 <code>apps/cms/src</code>의 설계도 파일과 <code>apps/cms/types/generated</code>(Strapi가 자동 생성한 타입)입니다. 관리자 화면에서 입력한 데이터는 DB에 있으므로 커밋에 들어가지 않습니다.</p>
+
+<section class="more">
+<h2>더 해보기</h2>
+<ul>
+  <li>메뉴에 <code>slug</code>(UID)를 추가해서 메뉴별 상세 페이지 URL을 만들 준비를 해 보기</li>
+  <li>여러 지점이 있는 체인점이라면? <code>Store</code> 타입과 관계를 설계해 보기</li>
+  <li>Dynamic Zone으로 "공지 배너"나 "오늘의 한정 메뉴" 같은 자유 배치 영역을 만들어 보기</li>
+</ul>
+</section>
+
+<nav class="pager"><a href="01-local-setup.html">← 01 로컬 개발환경</a><a href="03-data-and-api.html">03 데이터 입력과 API →</a></nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>00 전체 구조와 도구</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 00</div>
+  <h1>전체 구조와 도구: 무엇을, 무엇으로, 왜 만드나</h1>
+  <p class="lead">본격적인 실습 전에 완성된 모습과 흐름을 먼저 봅니다. 이 장만 읽어도 "지금 어디쯤을 하고 있는지" 알 수 있습니다.</p>
+</header>
+
+<h2>1. 이번 실습의 목표</h2>
+<p>여러분은 이미 3층 아키텍처(웹 → 앱 → DB)의 인프라를 설계했습니다. 이번에는 그 인프라 위에 올라갈 <strong>애플리케이션을 직접 개발하고, GitHub를 통해 자동으로 배포</strong>하는 흐름을 체험합니다.</p>
+<ul>
+  <li>WordPress에서는 "화면·관리자·DB 연결"이 한 덩어리의 <em>블랙박스</em>였습니다.</li>
+  <li>이번에는 그 덩어리를 <strong>화면(Next.js)</strong>과 <strong>관리 도구·API(Strapi)</strong>로 나누고, 둘이 어떻게 통신하는지 직접 만들어 봅니다.</li>
+</ul>
+<p>이 자료에서는 예로 キム系 라멘 가게 <strong>「麺屋ヤマモリ」</strong>의 메뉴 사이트를 만듭니다. 가게 직원이 관리자 화면에서 메뉴와 가격을 입력하면, 손님이 보는 사이트에 그대로 반영됩니다.</p>
+<div class="note"><strong>이 자료의 사용법</strong>: 이 자료는 "똑같이 따라 만드는 정답"이 아니라 <strong>"이런 방식으로 개발하고 배포한다"는 참고 예시</strong>입니다. 명령과 설정은 그대로 재현할 수 있게 적었지만, 여러분은 <strong>자신이 만들고 싶은 사이트(주제·데이터·화면)로 바꿔서</strong> 만들어 보세요. 라멘 가게의 데이터나 사진은 제공하지 않습니다. 예시 값은 참고만 하고, 여러분의 것을 준비하세요.</div>
+
+<h2>2. 완성된 모습 (AWS)</h2>
+<figure>
+<svg class="dg" viewBox="0 0 980 580" role="img" aria-label="AWS 구성도">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="fill:var(--fg)"/></marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+  </defs>
+  <!-- 사용자 -->
+  <rect class="box" x="10" y="190" width="118" height="70" rx="10"/><text class="t" x="69" y="220" text-anchor="middle">손님</text><text class="s" x="69" y="240" text-anchor="middle">브라우저</text>
+  <rect class="box" x="10" y="330" width="118" height="70" rx="10"/><text class="t" x="69" y="360" text-anchor="middle">가게 직원</text><text class="s" x="69" y="380" text-anchor="middle">관리자 화면</text>
+  <!-- AWS Cloud -->
+  <rect class="grp" x="150" y="14" width="820" height="520" rx="4"/><image href="../assets/aws/AWSCloud.svg" x="150" y="14" width="32" height="32"/><text class="t" x="190" y="35">AWS 클라우드 (도쿄 리전)</text>
+  <!-- CloudFront -->
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="198" width="48" height="48"/><text x="214" y="262" text-anchor="middle" class="s">CloudFront</text><text x="214" y="277" text-anchor="middle" class="s">(사이트용)</text>
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="338" width="48" height="48"/><text x="214" y="402" text-anchor="middle" class="s">CloudFront</text><text x="214" y="417" text-anchor="middle" class="s">(관리자용)</text>
+  <!-- VPC -->
+  <rect class="grp-vpc" x="300" y="56" width="530" height="440" rx="4"/><image href="../assets/aws/VirtualprivatecloudVPC.svg" x="300" y="56" width="32" height="32"/><text class="t" x="340" y="77">VPC (자기만의 네트워크)</text>
+  <rect class="grp-pri" x="320" y="100" width="320" height="380" rx="4"/><image href="../assets/aws/Privatesubnet.svg" x="320" y="100" width="28" height="28"/><text class="t" x="354" y="119">Private 서브넷</text><text class="s" x="354" y="135">인터넷에서 직접 들어올 수 없음</text>
+  <image href="../assets/aws/ElasticLoadBalancing.svg" x="345" y="268" width="48" height="48"/><text x="369" y="332" text-anchor="middle" class="s">ALB (내부)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="168" width="48" height="48"/><text x="549" y="232" text-anchor="middle" class="t">Next.js</text><text x="549" y="247" text-anchor="middle" class="s">Fargate (화면)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="360" width="48" height="48"/><text x="549" y="424" text-anchor="middle" class="t">Strapi</text><text x="549" y="439" text-anchor="middle" class="s">Fargate (CMS·API)</text>
+  <rect class="grp-iso" x="660" y="300" width="155" height="180" rx="4"/><text class="t" x="672" y="320">Isolated 서브넷</text><text class="s" x="672" y="336">앱에서만 접근</text>
+  <image href="../assets/aws/AmazonAurora.svg" x="713" y="368" width="48" height="48"/><text x="737" y="432" text-anchor="middle" class="t">Aurora</text><text x="737" y="447" text-anchor="middle" class="s">PostgreSQL</text>
+  <!-- VPC 밖 -->
+  <image href="../assets/aws/AmazonSimpleStorageService.svg" x="872" y="120" width="48" height="48"/><text x="896" y="184" text-anchor="middle" class="s">S3 (사진)</text>
+  <image href="../assets/aws/AWSSecretsManager.svg" x="872" y="250" width="48" height="48"/><text x="896" y="314" text-anchor="middle" class="s">Secrets</text><text x="896" y="328" text-anchor="middle" class="s">Manager</text>
+  <image href="../assets/aws/AmazonElasticContainerRegistry.svg" x="872" y="390" width="48" height="48"/><text x="896" y="454" text-anchor="middle" class="s">ECR</text><text x="896" y="468" text-anchor="middle" class="s">(앱 이미지)</text>
+  <!-- 손님 흐름 -->
+  <path class="ar" d="M128 225 H186"/><circle class="num" cx="157" cy="210" r="10"/><text class="num-t" x="157" y="214" text-anchor="middle">1</text>
+  <path class="ar" d="M240 222 C290 222 300 290 341 292"/><circle class="num" cx="290" cy="240" r="10"/><text class="num-t" x="290" y="244" text-anchor="middle">2</text>
+  <path class="ar" d="M395 286 C450 286 470 192 521 192"/><circle class="num" cx="455" cy="222" r="10"/><text class="num-t" x="455" y="226" text-anchor="middle">3</text>
+  <path class="ar" d="M549 252 V356"/><circle class="num" cx="565" cy="300" r="10"/><text class="num-t" x="565" y="304" text-anchor="middle">4</text><text class="s" x="580" y="304">토큰으로 조회</text>
+  <path class="ar" d="M575 384 H709"/><circle class="num" cx="640" cy="370" r="10"/><text class="num-t" x="640" y="374" text-anchor="middle">5</text>
+  <path class="ar" d="M575 372 C700 340 780 200 868 150"/><circle class="num" cx="760" cy="238" r="10"/><text class="num-t" x="760" y="242" text-anchor="middle">6</text>
+  <!-- 관리자 흐름 -->
+  <path class="ar2" d="M128 365 H186"/>
+  <path class="ar2" d="M240 362 C290 362 300 300 341 300"/>
+  <path class="ar2" d="M395 300 C450 310 470 384 521 384"/>
+  <!-- 층 -->
+  <text class="tier" x="270" y="560" text-anchor="middle">1층 웹 (입구)</text>
+  <text class="tier" x="549" y="560" text-anchor="middle">2층 앱 (처리)</text>
+  <text class="tier" x="810" y="560" text-anchor="middle">3층 데이터 (저장)</text>
+</svg>
+<figcaption>검은 실선 = 손님이 사이트를 볼 때, 주황 점선 = 직원이 관리자 화면을 쓸 때. Secrets Manager는 DB 비밀번호와 토큰을 보관하다가 앱이 시작될 때 전달하고, ECR은 배포할 앱(컨테이너 이미지)을 보관합니다.</figcaption>
+</figure>
+
+<h3>손님이 메뉴 페이지를 열면 일어나는 일</h3>
+<ol class="steps">
+  <li>브라우저가 <strong>CloudFront</strong>(AWS의 입구)에 접속합니다. HTTPS 암호화도 여기서 처리합니다.</li>
+  <li>CloudFront가 VPC 안의 <strong>ALB</strong>(부하 분산기)로 요청을 넘깁니다. ALB는 인터넷에 직접 공개되어 있지 않습니다.</li>
+  <li>ALB가 요청을 <strong>Next.js</strong>(화면 담당 서버)로 보냅니다.</li>
+  <li>Next.js가 <strong>API 토큰</strong>을 들고 <strong>Strapi</strong>에 "메뉴 목록 주세요"라고 요청합니다. 이 통신은 VPC 내부에서만 일어나고, 토큰은 브라우저에 절대 전달되지 않습니다.</li>
+  <li>Strapi가 <strong>Aurora</strong>(DB)에서 메뉴 데이터를 읽어 JSON으로 돌려줍니다.</li>
+  <li>사진은 <strong>S3</strong>에 저장되어 있습니다. Next.js가 완성된 HTML을 만들어 손님에게 돌려줍니다.</li>
+</ol>
+
+<h3>3층 아키텍처와의 대응</h3>
+<table>
+<tr><th>층</th><th>역할</th><th>이번 구성</th></tr>
+<tr><td>1층 웹</td><td>요청을 받는 입구</td><td>CloudFront + ALB</td></tr>
+<tr><td>2층 앱</td><td>화면을 만들고 데이터를 처리</td><td><strong>Next.js</strong>와 <strong>Strapi</strong> (2개로 분리)</td></tr>
+<tr><td>3층 데이터</td><td>데이터와 파일을 저장</td><td>Aurora PostgreSQL + S3</td></tr>
+</table>
+<details>
+<summary>왜 앱을 2개(Next.js와 Strapi)로 나누나요?</summary>
+<ul>
+  <li><strong>역할 분리</strong>: 화면 디자인을 바꿔도 CMS는 그대로, CMS를 업데이트해도 화면은 그대로 둘 수 있습니다.</li>
+  <li><strong>보안</strong>: Strapi의 API 토큰을 Next.js 서버 안에만 두면, 브라우저에서는 절대 볼 수 없습니다.</li>
+  <li><strong>재사용</strong>: 같은 Strapi API를 나중에 스마트폰 앱이나 다른 사이트에서도 쓸 수 있습니다. 이런 구조를 <em>헤드리스 CMS</em>라고 합니다.</li>
+</ul>
+<p>인프라 관점에서는 "앱 서버가 1종류에서 2종류가 되는 것"뿐입니다. 여러분이 설계한 구조에 서비스(또는 서버)를 하나 더 두면 됩니다.</p>
+</details>
+
+
+<h3>여러분이 설계한 구조(WordPress 기준)와 다른 점</h3>
+<p>여러분은 WordPress를 올리는 것을 전제로 인프라를 설계했습니다. 이번 구성은 앱이 2개로 나뉘기 때문에 몇 군데가 다릅니다. <strong>3층 구조 자체는 같으므로</strong>, 아래 차이만 반영하면 여러분의 설계 위에서 그대로 동작합니다.</p>
+<table>
+<tr><th>항목</th><th>WordPress 기준 설계</th><th>이번 구성</th><th>여러분의 구조에 적용하려면</th></tr>
+<tr><td>앱 서버</td><td>WordPress 1종류</td><td>Next.js + Strapi 2종류</td><td>ECS라면 서비스를 하나 추가합니다. EC2라면 같은 서버에 둘 다 띄워도 됩니다</td></tr>
+<tr><td>입구의 분배</td><td>ALB → WordPress</td><td>사이트용과 관리자용 CloudFront → ALB</td><td>ALB의 규칙(호스트 이름이나 경로)으로 사이트와 관리자 화면을 나눕니다. 방법은 자유입니다</td></tr>
+<tr><td>앱끼리의 통신</td><td>없음 (한 덩어리)</td><td>Next.js → Strapi</td><td>보안 그룹에서 Next.js → Strapi(포트 1337) 통신을 허용합니다</td></tr>
+<tr><td>DB</td><td>MySQL</td><td>PostgreSQL</td><td>Strapi는 MySQL도 지원하므로 <strong>설계한 MySQL을 그대로 써도 됩니다</strong>(설치 시 <code>--dbclient mysql</code>)</td></tr>
+<tr><td>업로드 파일</td><td>EFS나 서버 디스크</td><td>S3</td><td>S3를 권장합니다. 컨테이너는 재시작하면 디스크가 사라지기 때문입니다</td></tr>
+</table>
+<div class="note">이 자료의 AWS 구성은 <strong>정답이 아니라 한 가지 예</strong>입니다. 인프라는 여러분의 설계를 쓰고, 이 자료에서는 "그 위에 앱을 어떻게 개발하고 배포하는가"를 참고하세요.</div>
+
+<h2>3. 로컬 개발 환경 (내 PC)</h2>
+<p>개발은 내 PC에서 합니다. AWS와 같은 3층 구조를 PC 안에 작게 재현합니다.</p>
+<figure>
+<svg class="dg" viewBox="0 0 980 190" role="img" aria-label="로컬 구성도">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="grp" x="10" y="10" width="960" height="170" rx="10"/><text class="t" x="26" y="34">내 PC</text>
+  <rect class="box" x="40" y="60" width="160" height="80" rx="10"/><text class="t" x="120" y="96" text-anchor="middle">브라우저</text><text class="s" x="120" y="116" text-anchor="middle">localhost:3000 / 1337</text>
+  <rect class="hl" x="270" y="60" width="180" height="80" rx="10"/><text class="t" x="360" y="92" text-anchor="middle">Next.js :3000</text><text class="s" x="360" y="112" text-anchor="middle">pnpm dev:web</text>
+  <rect class="hl" x="520" y="60" width="180" height="80" rx="10"/><text class="t" x="610" y="92" text-anchor="middle">Strapi :1337</text><text class="s" x="610" y="112" text-anchor="middle">pnpm dev:cms</text>
+  <rect class="box" x="770" y="50" width="180" height="100" rx="10" style="stroke-dasharray:5 3"/><text class="t" x="860" y="88" text-anchor="middle">PostgreSQL :5432</text><text class="s" x="860" y="108" text-anchor="middle">Docker 컨테이너</text><text class="s" x="860" y="126" text-anchor="middle">pnpm dev:db</text>
+  <path class="ar" d="M200 100 H266"/><path class="ar" d="M450 100 H516"/><path class="ar" d="M700 100 H766"/>
+</svg>
+<figcaption>Next.js와 Strapi는 PC에서 직접 실행하고(코드를 고치면 바로 반영), DB만 Docker 컨테이너로 띄웁니다</figcaption>
+</figure>
+
+<h2>4. 개발부터 배포까지의 흐름</h2>
+<ol class="steps">
+  <li><strong>로컬에서 개발</strong>: 스키마 추가, 화면 수정 등을 하고 내 PC에서 동작을 확인합니다.</li>
+  <li><strong>브랜치에 push</strong>: <code>main</code>에 바로 넣지 않고 작업용 브랜치에 올립니다.</li>
+  <li><strong>Pull Request(PR)</strong>: "이 변경을 반영해 주세요"라는 요청입니다. 이때 <strong>CI</strong>(자동 검사: 코드 형식, 빌드, 시크릿 유출 검사 등)가 자동으로 돕니다.</li>
+  <li><strong>리뷰 후 머지</strong>: 검사를 통과하고 리뷰가 끝나면 <code>main</code>에 합칩니다.</li>
+  <li><strong>자동 배포(CD)</strong>: <code>main</code>이 바뀌면 GitHub Actions가 AWS에 배포합니다. 사람이 AWS 콘솔을 만질 필요가 없습니다.</li>
+</ol>
+
+<h2>5. 코드로 하는 일, 화면으로 하는 일</h2>
+<p>Strapi를 쓰면 <strong>처음에 기본 설정만 코드로 해 두면, 그 뒤의 데이터 작업은 관리자 화면에서 끝납니다.</strong> 코드를 고쳐야 하는 곳은 아래로 정해져 있습니다.</p>
+<div class="cards">
+  <div class="card"><h4>🧑‍💻 코드로 하는 일</h4><p>
+  · 저장소 뼈대, DB 컨테이너 (01장)<br>
+  · Strapi 설치 시 DB 연결 설정 (자동 생성)<br>
+  · Next.js 화면 (04장). 화면은 코드로 만듭니다<br>
+  · 배포 준비 (06장): 사진을 S3에 저장하는 설정(<code>config/plugins.ts</code>), S3 사진 표시 허용(<code>config/middlewares.ts</code>), Dockerfile<br>
+  · CI/CD 설정 (05·06장)</p></div>
+  <div class="card"><h4>🖱️ Strapi 관리자 화면에서 하는 일</h4><p>
+  · 데이터 구조(스키마) 설계. <strong>로컬에서만</strong> 합니다 (02장)<br>
+  · 데이터 입력, 수정, 공개 (03장)<br>
+  · API 토큰 발급과 권한 (03장)<br>
+  · 사진 업로드</p></div>
+</div>
+<p>화면에서 데이터 구조를 저장하면 Strapi가 설계도 파일(<code>schema.json</code>)을 <strong>자동으로</strong> 만듭니다. 이 파일은 코드와 똑같이 Git으로 운영에 배포됩니다. 즉 "직접 코드를 쓰지는 않지만, 결과는 코드로 관리된다"는 구조입니다.</p>
+
+<h2>6. 사용하는 도구</h2>
+<div class="cards">
+  <div class="card"><h4>Next.js</h4><p>React 기반 웹 프레임워크. 서버에서 HTML을 만들 수 있어서, 토큰 같은 비밀을 서버에만 둘 수 있습니다.</p></div>
+  <div class="card"><h4>Strapi</h4><p>오픈소스 헤드리스 CMS. 관리자 화면에서 데이터 구조를 만들면 API가 자동으로 생깁니다.</p></div>
+  <div class="card"><h4>PostgreSQL</h4><p>관계형 DB. 로컬에서는 Docker로, AWS에서는 Aurora로 실행합니다.</p></div>
+  <div class="card"><h4>Docker</h4><p>프로그램을 "컨테이너"라는 상자에 담아 어디서든 똑같이 실행하는 도구입니다.</p></div>
+  <div class="card"><h4>pnpm</h4><p>Node.js 패키지 관리자. 여러 앱을 저장소 하나에서 관리(모노레포)할 수 있습니다.</p></div>
+  <div class="card"><h4>Biome</h4><p>코드 형식 통일과 실수 검출을 한 번에 하는 도구입니다.</p></div>
+  <div class="card"><h4>GitHub / Actions</h4><p>코드 보관과 리뷰, 그리고 자동 검사와 자동 배포를 담당합니다.</p></div>
+  <div class="card"><h4>AWS CDK</h4><p>AWS 구성을 TypeScript 코드로 적는 도구입니다. 코드에서 구성이 만들어집니다.</p></div>
+</div>
+
+<h2>7. 장 구성</h2>
+<ul class="toc">
+  <li><span class="no">01</span><a href="01-local-setup.html">로컬 개발환경 만들기</a>: 저장소 뼈대, DB, Strapi, Next.js 설치</li>
+  <li><span class="no">02</span><a href="02-strapi-schema.html">Strapi 스키마 설계</a>: 라멘 가게의 데이터 구조 만들기</li>
+  <li><span class="no">03</span><a href="03-data-and-api.html">데이터 입력과 API</a>: 입력, 공개, 토큰 발급</li>
+  <li><span class="no">04</span><a href="04-nextjs-page.html">Next.js 화면</a>: 서버에서 안전하게 데이터 가져오기</li>
+  <li><span class="no">05</span>GitHub와 CI: 저장소 설정, PR, 자동 검사 (작성 중)</li>
+  <li><span class="no">06</span>배포(CD): AWS로 자동 배포, 운영 초기 설정 (작성 중)</li>
+</ul>
+
+<nav class="pager"><span></span><a href="01-local-setup.html">01 로컬 개발환경 →</a></nav>
+</main>
+</body>
+</html>

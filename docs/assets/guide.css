@@ -1,0 +1,83 @@
+/* 연수 문서 공통 스타일. 외부 CDN 없이 오프라인으로 열린다. */
+:root {
+  --bg: #faf8f4; --fg: #1f1d1a; --muted: #6d675f; --card: #ffffff; --line: #e7e1d6;
+  --accent: #c2410c; --accent-soft: #fff1e6; --code: #f2eee7; --ok: #15803d; --warn: #b45309;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15151a; --fg: #ecebe8; --muted: #a09b93; --card: #1e1e25; --line: #2f2f38;
+    --accent: #fb923c; --accent-soft: #2a1f17; --code: #25252d; --ok: #4ade80; --warn: #fbbf24;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15151a; --fg: #ecebe8; --muted: #a09b93; --card: #1e1e25; --line: #2f2f38;
+  --accent: #fb923c; --accent-soft: #2a1f17; --code: #25252d; --ok: #4ade80; --warn: #fbbf24;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.8 -apple-system, "Hiragino Sans", "Noto Sans JP", "Noto Sans KR", sans-serif; }
+main { max-width: 920px; margin: 0 auto; padding: 40px 16px 120px; }
+header.chapter { border-bottom: 2px solid var(--line); margin-bottom: 32px; padding-bottom: 16px; }
+header.chapter .no { color: var(--accent); font-weight: 700; letter-spacing: .08em; font-size: 13px; }
+h1 { font-size: 30px; margin: 4px 0 8px; line-height: 1.35; }
+.lead { color: var(--muted); margin: 0; }
+h2 { font-size: 22px; margin: 48px 0 12px; padding-top: 8px; }
+h3 { font-size: 17px; margin: 28px 0 8px; }
+.goal { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+.goal::before { content: "목표 · "; font-weight: 700; color: var(--accent); }
+.ok { border-left: 4px solid var(--ok); padding: 6px 14px; margin: 12px 0; color: var(--muted); }
+.ok::before { content: "✔ 성공하면 "; color: var(--ok); font-weight: 700; }
+.note { border: 1px dashed var(--warn); border-radius: 8px; padding: 10px 14px; margin: 16px 0; }
+.note::before { content: "주의 · "; color: var(--warn); font-weight: 700; }
+figure { margin: 16px 0 24px; }
+figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; display: block; }
+figcaption { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
+code { background: var(--code); padding: 1px 6px; border-radius: 5px; font-size: .9em; }
+pre { background: var(--code); padding: 14px 16px; border-radius: 10px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; }
+pre code { background: none; padding: 0; }
+.where { font-size: 12.5px; color: var(--muted); margin-bottom: -8px; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; display: block; overflow-x: auto; }
+th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+th { background: var(--code); }
+details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; margin: 16px 0; }
+details summary { cursor: pointer; font-weight: 600; }
+.steps { counter-reset: s; list-style: none; padding: 0; }
+.steps > li { counter-increment: s; position: relative; padding-left: 40px; margin: 10px 0; }
+.steps > li::before { content: counter(s); position: absolute; left: 0; top: 2px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.more { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; margin-top: 48px; }
+.more h2 { margin-top: 0; }
+nav.pager { display: flex; justify-content: space-between; margin-top: 40px; font-size: 14px; }
+a { color: var(--accent); }
+
+/* ---- 도식 ---- */
+.dg { width: 100%; height: auto; display: block; }
+.dg text { fill: var(--fg); font: 13px -apple-system, "Hiragino Sans", "Noto Sans KR", sans-serif; }
+.dg .t { font-weight: 700; }
+.dg .s { fill: var(--muted); font-size: 11.5px; }
+.dg .grp { fill: none; stroke: var(--muted); stroke-width: 1.2; }
+.dg .grp-vpc { fill: none; stroke: #8c4fff; stroke-width: 1.5; }
+.dg .grp-pri { fill: color-mix(in srgb, #00a4a6 7%, transparent); stroke: #00a4a6; stroke-width: 1.2; }
+.dg .grp-iso { fill: color-mix(in srgb, #3f8624 7%, transparent); stroke: #3f8624; stroke-width: 1.2; stroke-dasharray: 5 3; }
+.dg .box { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.dg .hl { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.dg .ar { stroke: var(--fg); stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+.dg .ar2 { stroke: var(--accent); stroke-width: 1.8; fill: none; marker-end: url(#arrow2); stroke-dasharray: 5 4; }
+.dg .num { fill: var(--accent); }
+.dg .num-t { fill: #fff; font-size: 12px; font-weight: 700; }
+.dg .tier { font-size: 12px; font-weight: 700; fill: var(--accent); }
+.legend { font-size: 13.5px; color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.card h4 { margin: 0 0 4px; font-size: 15px; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.toc { list-style: none; padding: 0; }
+.toc li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+.toc .no { color: var(--accent); font-weight: 700; margin-right: 8px; }
+
+/* ---- 디렉터리 상태 ---- */
+.state { border: 1px solid var(--line); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+.state > .h { background: var(--code); padding: 6px 14px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.state pre { margin: 0; border-radius: 0; background: var(--card); }
+.state mark { background: color-mix(in srgb, var(--ok) 18%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+.file { font-size: 12.5px; color: var(--muted); margin: 14px 0 -8px; font-family: ui-monospace, monospace; }
