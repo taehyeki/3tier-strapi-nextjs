@@ -13,7 +13,7 @@
 <header class="chapter">
   <div class="no">CHAPTER 02</div>
   <h1>Strapi 스키마 설계: 라멘 가게 메뉴 만들기</h1>
-  <p class="lead">"보여주고 싶은 화면"에서 거꾸로 생각해서 데이터 구조를 정하고, 관리자 화면에서 만들어 봅니다.</p>
+  <p class="lead">"보여주고 싶은 화면"에서 거꾸로 생각해서 데이터 구조를 정하고, 관리자 화면에서 만듭니다. 이 장의 핵심은 조작 방법이 아니라 <strong>그릇을 고르는 기준</strong>과 <strong>화면 조작이 파일(코드)로 남는다</strong>는 점입니다.</p>
 </header>
 
 <p class="goal">가게 정보, 메뉴, 사이즈, 토핑, 추가 메뉴를 Strapi 스키마로 정의하고, 화면 조작이 <strong>파일</strong>로 저장되는 것을 확인한다.</p>
@@ -150,82 +150,32 @@
 <p>여러분의 사이트를 설계할 때도 먼저 <strong>"화면에 보여줄 정보"를 적고</strong>, 위의 3가지 질문으로 그릇을 고르면 됩니다.</p>
 
 
-<h2>3. 관리자 계정 만들기</h2>
+<h2>3. 관리자 화면에서 만들기</h2>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>pnpm dev:db    # DB 컨테이너 기동
 pnpm dev:cms   # Strapi 기동 → http://localhost:1337/admin</code></pre>
-<p>처음 접속하면 관리자 등록 화면이 나옵니다. 로컬 전용 계정이라 아무 값이나 넣어도 됩니다.</p>
-<figure><img src="../assets/img/schema/01-register-admin.png" alt="관리자 등록 화면"><figcaption>비밀번호 규칙: 8자 이상, 대문자·소문자·숫자 포함</figcaption></figure>
-<p class="ok">대시보드가 표시됩니다. 왼쪽 메뉴에서 <strong>Content-Type Builder</strong>(블록 모양 아이콘)를 엽니다.</p>
-<figure><img src="../assets/img/schema/03-ctb-empty.png" alt="비어 있는 Content-Type Builder"><figcaption>처음에는 기본 제공되는 <code>User</code>만 있습니다</figcaption></figure>
-
+<p>처음 접속하면 <strong>관리자 등록 화면</strong>이 나옵니다(로컬 전용 계정). 등록 후 왼쪽 메뉴의 <strong>Content-Type Builder</strong>(블록 모양 아이콘)에서 그릇을 만듭니다.</p>
+<figure><img src="../assets/img/schema/06-field-types.png" alt="필드 종류 선택"><figcaption>그릇을 만들고 필드를 추가하는 화면. 이번에는 Text, Number, Media, Enumeration, Relation, Component를 씁니다</figcaption></figure>
 <div class="note">Content-Type Builder는 <strong>로컬(develop 모드)에서만</strong> 쓸 수 있습니다. 운영 환경에서는 잠겨 있습니다. 스키마는 반드시 로컬에서 바꾸고 Git으로 배포합니다.</div>
 
-<h2>4. Shop (Single Type)</h2>
-<ol class="steps">
-  <li><strong>SINGLE TYPES</strong> 옆의 <code>+</code> → Display name에 <code>Shop</code>을 입력하고 Continue를 누릅니다. API ID는 자동으로 채워집니다.</li>
-  <li>필드 종류 목록에서 <strong>Text</strong>를 고릅니다.</li>
-  <li>Name에 <code>name</code>을 입력하고 <strong>ADVANCED SETTINGS → Required field</strong>를 체크한 뒤 "Add another field"를 누릅니다.</li>
-  <li>같은 방법으로 아래 필드를 추가하고 Finish를 누릅니다.</li>
-</ol>
-<figure><img src="../assets/img/schema/06-field-types.png" alt="필드 종류 선택"><figcaption>필드 종류 목록. 이번에는 Text, Number, Media, Enumeration, Relation, Component를 씁니다</figcaption></figure>
-<figure><img src="../assets/img/schema/08-required.png" alt="Required 설정"><figcaption>필수 항목은 ADVANCED SETTINGS 탭에서 설정합니다</figcaption></figure>
+<p>이번에 만든 그릇과 필드입니다. 필수 항목(Required)과 사진의 허용 형식(Images만)은 각 필드의 <strong>ADVANCED SETTINGS</strong> 탭에서 정합니다.</p>
 <table>
-<tr><th>Name</th><th>종류</th><th>설정</th><th>용도</th></tr>
-<tr><td>name</td><td>Text (Short)</td><td>Required</td><td>가게 이름</td></tr>
-<tr><td>catchphrase</td><td>Text (Short)</td><td></td><td>한 줄 소개</td></tr>
-<tr><td>address</td><td>Text (Short)</td><td></td><td>주소</td></tr>
-<tr><td>businessHours</td><td>Text (<strong>Long</strong>)</td><td></td><td>영업시간(여러 줄)</td></tr>
-<tr><td>closedDays</td><td>Text (Short)</td><td></td><td>정기휴일</td></tr>
-<tr><td>ticketRule</td><td>Text (<strong>Long</strong>)</td><td></td><td>식권·콜 규칙 안내</td></tr>
-<tr><td>photo</td><td>Media (<strong>Single</strong>)</td><td>ADVANCED → 허용 타입: Images만</td><td>가게 사진</td></tr>
+<tr><th>그릇</th><th>필드 (종류)</th></tr>
+<tr><td>Single Type <code>Shop</code></td><td><code>name</code>(Text, 필수), <code>catchphrase</code>, <code>address</code>, <code>closedDays</code>(Text), <code>businessHours</code>, <code>ticketRule</code>(Text Long = 여러 줄), <code>photo</code>(Media Single, Images만)</td></tr>
+<tr><td>Component <code>menu.size</code></td><td><code>label</code>(Enumeration: <code>small</code> / <code>medium</code> / <code>large</code>, 필수), <code>noodleGrams</code>(Number), <code>price</code>(Number, 필수)</td></tr>
+<tr><td>Component <code>menu.level</code></td><td><code>label</code>(Text, 필수. ナシ・フツウ・マシ・マシマシ 등)</td></tr>
+<tr><td>Collection Type <code>Topping</code></td><td><code>name</code>(Text, 필수), <code>description</code>(Text Long), <code>levels</code>(Component <code>menu.level</code>, <strong>Repeatable</strong>)</td></tr>
+<tr><td>Collection Type <code>Extra</code></td><td><code>name</code>(Text, 필수), <code>price</code>(Number, 필수), <code>photo</code>(Media Single, Images만)</td></tr>
+<tr><td>Collection Type <code>Menu</code></td><td><code>name</code>(Text, 필수), <code>description</code>(Text Long), <code>photo</code>(Media Single, Images만), <code>sizes</code>(Component <code>menu.size</code>, Repeatable), <code>extras</code>·<code>toppings</code>(Relation, 다대다)</td></tr>
 </table>
-<figure><img src="../assets/img/schema/11-media-images-only.png" alt="Media 허용 타입"><figcaption>사진 필드에 PDF나 동영상이 올라가지 않도록 Images만 허용합니다</figcaption></figure>
-<figure><img src="../assets/img/schema/12-shop-fields.png" alt="Shop 필드 목록"><figcaption>아직 <strong>저장 전</strong>입니다(NEW 표시). 저장은 마지막에 한 번에 합니다</figcaption></figure>
-
-<h2>5. 사이즈 부품 <code>menu.size</code> (Component)</h2>
-<ol class="steps">
-  <li><strong>COMPONENTS</strong> 옆의 <code>+</code> → Display name에 <code>Size</code>, 카테고리에 <code>menu</code>(새로 입력)를 넣고 아이콘을 골라 Continue를 누릅니다.</li>
-  <li>아래 필드를 추가합니다.</li>
-</ol>
-<figure><img src="../assets/img/schema/13-component-create.png" alt="컴포넌트 생성"><figcaption>카테고리는 부품을 묶는 폴더입니다. <code>menu.size</code>라는 이름이 됩니다</figcaption></figure>
-<table>
-<tr><th>Name</th><th>종류</th><th>설정</th></tr>
-<tr><td>label</td><td>Enumeration</td><td>값: <code>small</code> / <code>medium</code> / <code>large</code>(한 줄에 하나), Required</td></tr>
-<tr><td>noodleGrams</td><td>Number (integer)</td><td>면 양(g)</td></tr>
-<tr><td>price</td><td>Number (integer)</td><td>Required</td></tr>
-</table>
-<div class="note">Enumeration 값에 <code>小</code> <code>中</code> <code>大</code>를 그대로 넣으면 오류가 납니다. Enumeration 값은 화면에 보이는 글자가 아니라 <strong>프로그램이 쓰는 식별자</strong>라서 영문으로 정합니다. "小/中/大"라는 표시는 화면(Next.js) 쪽에서 붙입니다.</div>
+<p>만들 때 헷갈리기 쉬운 점은 세 가지입니다.</p>
+<p><strong>① Enumeration의 값은 영문 식별자</strong>: <code>小</code> <code>中</code> <code>大</code>를 그대로 넣으면 오류가 납니다. Enumeration 값은 화면에 보이는 글자가 아니라 <strong>프로그램이 쓰는 식별자</strong>입니다. "小/中/大"라는 표시는 화면(Next.js) 쪽에서 붙입니다(04장).</p>
 <figure><img src="../assets/img/schema/14-enum-error.png" alt="Enumeration 오류"><figcaption>"Values should have at least one alphabetical character..." 오류</figcaption></figure>
-
-<h2>6. 토핑 양 부품 <code>menu.level</code> (Component)</h2>
-<p>같은 방법으로 Display name은 <code>Level</code>, 카테고리는 <code>menu</code>로 만들고, 필드는 <code>label</code>(Text, Required) 하나만 둡니다. 값은 ナシ・フツウ・マシ・マシマシ처럼 자유롭게 입력하는 글자입니다.</p>
-
-<h2>7. Topping (Collection Type)</h2>
-<ol class="steps">
-  <li><strong>COLLECTION TYPES</strong> 옆의 <code>+</code> → <code>Topping</code>을 만듭니다.</li>
-  <li><code>name</code>(Text, Required)과 <code>description</code>(Text Long)을 추가합니다.</li>
-  <li><strong>Component</strong> → "Use an existing component" → Select a component를 누르고, Name은 <code>levels</code>, 컴포넌트는 <code>menu - Level</code>, Type은 <strong>Repeatable component</strong>를 고릅니다.</li>
-</ol>
-<figure><img src="../assets/img/schema/20-repeatable.png" alt="반복 컴포넌트"><figcaption>Repeatable = 부품을 여러 개 붙일 수 있습니다(ナシ, フツウ, マシ, マシマシ)</figcaption></figure>
-
-<h2>8. Extra (Collection Type)</h2>
-<p><code>name</code>(Text, Required), <code>price</code>(Number integer, Required), <code>photo</code>(Media Single, Images만)를 추가합니다. 조작은 지금까지와 같습니다.</p>
-
-<h2>9. Menu (Collection Type): 관계 연결</h2>
-<ol class="steps">
-  <li><code>Menu</code>를 만들고 <code>name</code>(Text, Required), <code>description</code>(Text Long), <code>photo</code>(Media Single, Images만)를 추가합니다.</li>
-  <li><strong>Component</strong> → 기존 <code>menu - Size</code>를 Name <code>sizes</code>, <strong>Repeatable</strong>로 추가합니다.</li>
-  <li><strong>Relation</strong>을 고르고, 오른쪽 대상을 <code>Extra</code>로 바꾼 뒤 가운데 아이콘에서 <strong>has and belongs to many</strong>(다대다)를 고릅니다. 필드 이름은 왼쪽 <code>extras</code>, 오른쪽 <code>menus</code>로 합니다.</li>
-  <li>같은 방법으로 <code>Topping</code>에 대한 다대다 관계 <code>toppings</code> / <code>menus</code>를 추가합니다.</li>
-</ol>
+<p><strong>② Repeatable</strong>: 부품을 여러 개 붙일 수 있게 합니다. 메뉴 하나에 사이즈 3개(小·中·大), 토핑 하나에 양 4개(ナシ〜マシマシ)를 붙이기 위해 켭니다.</p>
+<p><strong>③ Relation의 종류</strong>: 가운데 아이콘을 고르면 아래에 의미가 문장으로 표시됩니다. 그 문장이 의도와 맞는지 읽어 보고 고릅니다.</p>
 <figure><img src="../assets/img/schema/24-relation-many-to-many.png" alt="다대다 관계 설정"><figcaption>"Menus has and belongs to many Extras": 메뉴 하나에 추가 메뉴 여럿, 추가 메뉴 하나도 여러 메뉴에 붙는다</figcaption></figure>
-<details>
-<summary>관계 아이콘 6가지는 무엇이 다른가요?</summary>
-<p>아이콘마다 "몇 대 몇인가(1:1, 1:N, N:N)"와 "한쪽에서만 참조하는가, 양쪽에서 서로 아는가"가 다릅니다. 아이콘을 누르면 바로 아래에 <em>"Menus has and belongs to many Extras"</em>처럼 <strong>문장으로 의미가 표시</strong>되므로, 그 문장이 의도와 맞는지 소리 내어 읽어 보고 고르면 됩니다.</p>
-</details>
 
-<h2>10. 저장: 화면 조작이 "파일"이 된다</h2>
+<h2>4. 저장: 화면 조작이 "파일"이 된다</h2>
 <p>왼쪽 위의 <strong>Save</strong>를 누릅니다. Strapi가 서버를 재시작하고 페이지가 자동으로 새로고침됩니다.</p>
 <figure><img src="../assets/img/schema/26-saving.png" alt="재시작 대기"><figcaption>"Waiting for restart…": 이 사이에 Strapi가 파일을 쓰고 DB 테이블을 만듭니다</figcaption></figure>
 <p>터미널에서 확인해 봅니다.</p>
@@ -256,20 +206,12 @@ pnpm dev:cms   # Strapi 기동 → http://localhost:1337/admin</code></pre>
 
 <div class="note"><strong>여기가 이번 연수의 핵심입니다.</strong> 이 <em>파일(스키마)</em>은 Git → PR → CI/CD를 거쳐 운영에 배포되고, 운영 Strapi가 기동할 때 테이블을 만듭니다. 하지만 관리자 화면에서 입력한 <em>데이터</em>는 각 환경의 DB에만 있고 배포되지 않습니다.</div>
 
-<h2>11. 커밋</h2>
+<h2>5. 커밋</h2>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>git add .
 git commit -m "feat(cms): メニューのスキーマを追加"</code></pre>
 <p class="ok">커밋되는 것은 <code>apps/cms/src</code>의 설계도 파일과 <code>apps/cms/types/generated</code>(Strapi가 자동 생성한 타입)입니다. 관리자 화면에서 입력한 데이터는 DB에 있으므로 커밋에 들어가지 않습니다.</p>
 
-<section class="more">
-<h2>더 해보기</h2>
-<ul>
-  <li>메뉴에 <code>slug</code>(UID)를 추가해서 메뉴별 상세 페이지 URL을 만들 준비를 해 보기</li>
-  <li>여러 지점이 있는 체인점이라면? <code>Store</code> 타입과 관계를 설계해 보기</li>
-  <li>Dynamic Zone으로 "공지 배너"나 "오늘의 한정 메뉴" 같은 자유 배치 영역을 만들어 보기</li>
-</ul>
-</section>
 
 <nav class="pager"><a href="01-local-setup.html">← 01 로컬 개발환경</a><a href="03-data-and-api.html">03 데이터 입력과 API →</a></nav>
 </main>

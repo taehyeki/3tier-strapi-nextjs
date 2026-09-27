@@ -95,7 +95,7 @@ File:        leak-test.ts</code></pre>
 <p>이 저장소의 CI는 검사 4개를 동시에 돌립니다(image는 web·cms로 두 번 실행).</p>
 <table>
 <tr><th>검사 이름</th><th>하는 일</th><th>막아 주는 것</th></tr>
-<tr><td><code>check</code></td><td>코드 검사(Biome), 타입 검사</td><td>오타·실수, 내 PC에서만 되는 코드</td></tr>
+<tr><td><code>check</code></td><td>코드 검사(Biome), 타입 검사, 인프라 코드(CDK)가 템플릿으로 변환되는지</td><td>오타·실수, 내 PC에서만 되는 코드, 배포 직전에야 드러날 인프라 코드의 실수</td></tr>
 <tr><td><code>secrets</code></td><td>gitleaks로 <strong>모든 커밋</strong>을 검사</td><td>과거 커밋에 섞인 시크릿(파일에서 지워도 히스토리에 남음)</td></tr>
 <tr><td><code>image (web)</code> / <code>image (cms)</code></td><td>운영과 같은 Docker 이미지를 빌드하고, Trivy로 취약점 검사</td><td>깨진 빌드, 이미지 안의 알려진 취약점</td></tr>
 </table>
@@ -117,6 +117,7 @@ File:        leak-test.ts</code></pre>
       - run: pnpm exec biome ci
       - run: pnpm typecheck</code></pre>
 <p><code>uses:</code>는 다른 사람이 만든 <strong>액션</strong>(재사용 가능한 단계)을 가져와 쓰는 것이고, <code>run:</code>은 명령을 직접 실행하는 것입니다. 전체: <code>.github/workflows/ci.yml</code></p>
+<p>이 CI는 <strong>PR에서만</strong> 돕니다. main에 머지된 뒤의 빌드와 배포는 06장의 배포 워크플로가 맡습니다.</p>
 
 <h3>지키고 있는 두 가지 원칙</h3>
 <table>
@@ -127,7 +128,8 @@ File:        leak-test.ts</code></pre>
 
 <!-- ============================================================ -->
 <h2>5. 이미지 빌드와 취약점 검사</h2>
-<p>06장에서는 web과 cms를 <strong>Docker 이미지</strong>(앱과 실행에 필요한 것을 묶은 상자)로 AWS에서 실행합니다. CI는 PR마다 그 이미지를 똑같이 빌드해 보고, 안에 든 부품에 알려진 취약점이 없는지 <strong>Trivy</strong>로 검사합니다.</p>
+<p>06장에서는 web과 cms를 <strong>Docker 이미지</strong>(앱과 실행에 필요한 것을 묶은 상자)로 AWS에서 실행합니다. CI는 PR마다 그 이미지를 똑같이 빌드해 보고, 안에 든 부품에 알려진 취약점이 없는지 <strong>Trivy</strong>로 검사합니다. 운영 서버와 같은 CPU(ARM)의 러너에서 빌드합니다.</p>
+<p>빌드→검사 단계는 <code>.github/actions/build-image/action.yml</code>에 한 번만 적어 두고(<em>composite action</em>: 여러 단계를 묶은 저장소 전용 액션), CI와 06장의 배포 워크플로가 <strong>같은 단계</strong>를 씁니다. PR에서 통과한 검사와 운영 이미지를 만들 때의 검사가 어긋나지 않습니다.</p>
 <p>Dockerfile에서 중요한 점은 네 가지입니다. 전체: <code>apps/web/Dockerfile</code>, <code>apps/cms/Dockerfile</code></p>
 <ul>
   <li><strong>2단계로 만든다</strong>: 1단계에서 설치·빌드하고, 2단계에는 실행에 필요한 결과물만 옮깁니다. 빌드 도구와 소스는 운영 이미지에 들어가지 않습니다.</li>
@@ -151,7 +153,7 @@ File:        leak-test.ts</code></pre>
 <details>
 <summary>Security 탭의 Code scanning은 무엇인가요?</summary>
 <p>CI는 Trivy 결과를 <strong>SARIF</strong>(검사 결과의 표준 형식)로 GitHub에 올립니다. <strong>Code scanning</strong>은 검사기가 아니라, 이렇게 올라온 결과를 경고 목록으로 보관하고 "언제 생겼고 언제 고쳐졌는지"를 추적하는 GitHub의 기능입니다. 다음 검사에서 사라진 경고는 자동으로 "fixed"로 닫힙니다.</p>
-<p>업로드하면 PR에 <code>Code scanning results / Trivy</code> 체크가 자동으로 붙습니다. 다시 검사하는 것이 아니라, "이 PR이 새 경고를 만들었나"를 main과 비교하는 것입니다. Security 탭의 기본 목록은 main 브랜치 기준입니다.</p>
+<p>업로드하면 PR에 <code>Code scanning results / Trivy</code> 체크가 자동으로 붙습니다. 다시 검사하는 것이 아니라, "이 PR이 새 경고를 만들었나"를 main과 비교하는 것입니다. Security 탭의 기본 목록은 main 브랜치 기준입니다(main의 결과는 06장의 배포 워크플로가 운영 이미지를 검사해서 올립니다).</p>
 </details>
 
 <!-- ============================================================ -->
@@ -173,7 +175,7 @@ File:        leak-test.ts</code></pre>
 </table>
 <figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset 규칙 설정"><figcaption>필수 검사는 CI가 한 번 돈 뒤 검색창에 이름을 입력하면 후보로 나옵니다. 출처가 GitHub Actions인 것을 고릅니다</figcaption></figure>
 <p>Secret scanning과 Push protection(2절 그림의 ②)은 public 저장소에서 기본으로 켜져 있습니다. <strong>Settings → Advanced Security</strong>에서 확인할 수 있습니다.</p>
-<div class="note">이 장의 설정은 <strong>public 저장소</strong>를 기준으로 했습니다. private 저장소에서는 GitHub 플랜(Team, Enterprise 등)이나 추가 보안 기능 계약에 따라 Ruleset, Secret scanning, Code scanning을 쓸 수 없을 수 있습니다. 회사 저장소에서 쓸 수 있는 기능을 먼저 확인하세요. Code scanning을 쓸 수 없으면 <code>ci.yml</code>의 결과 업로드 단계만 빼면 되고, 머지를 막는 기능은 그대로 동작합니다.</div>
+<div class="note">이 장의 설정은 <strong>public 저장소</strong>를 기준으로 했습니다. private 저장소에서는 GitHub 플랜(Team, Enterprise 등)이나 추가 보안 기능 계약에 따라 Ruleset, Secret scanning, Code scanning을 쓸 수 없을 수 있습니다. 회사 저장소에서 쓸 수 있는 기능을 먼저 확인하세요. Code scanning을 쓸 수 없으면 <code>.github/actions/build-image/action.yml</code>의 결과 업로드 단계만 빼면 되고, 머지를 막는 기능은 그대로 동작합니다.</div>
 
 <!-- ============================================================ -->
 <h2>7. 결과: PR 화면</h2>
@@ -185,9 +187,9 @@ File:        leak-test.ts</code></pre>
 <h2>다음: CI에서 CD로</h2>
 <p>CI는 "합치기 <strong>전</strong>"의 검사였습니다. <strong>CD(Continuous Delivery/Deployment, 지속적 배포)</strong>는 그 다음, "합쳐진 <strong>뒤</strong>"에 main을 자동으로 운영 환경에 내보내는 것입니다.</p>
 <pre><code>PR ──(CI: 검사)──▶ squash 머지 ──▶ main 이 바뀜 ──(CD: 06장)──▶ AWS 운영 환경</code></pre>
-<p>main은 이 장의 설정으로 "검사를 통과한 코드만 있는 곳"이 되었습니다. 그래서 06장에서는 <strong>main에 머지되는 순간</strong> 배포 워크플로가 이어서 돌고, 사람이 승인하면 AWS에 반영되도록 만듭니다.</p>
+<p>main은 이 장의 설정으로 "검사를 통과한 코드만 있는 곳"이 되었습니다. 그래서 06장에서는 <strong>main에 머지되는 순간</strong> 배포 워크플로가 이어서 돌아 AWS에 반영되도록 만듭니다.</p>
 
-<nav class="pager"><a href="04-nextjs-page.html">← 04 Next.js 화면</a><span>06 배포(CD) →</span></nav>
+<nav class="pager"><a href="04-nextjs-page.html">← 04 Next.js 화면</a><a href="06-deploy.html">06 배포(CD) →</a></nav>
 </main>
 </body>
 </html>

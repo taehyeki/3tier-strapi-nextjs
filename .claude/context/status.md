@@ -13,15 +13,14 @@
 
 | 장 | 파일 | 상태 |
 |---|---|---|
-| 00 전체 구조 | docs/ko/00-overview.html | 완료 (AWS 아이콘 구성도, WordPress 차이, 코드/화면 분담) |
-| 01 로컬 환경 | docs/ko/01-local-setup.html | 완료, 빈 폴더 재현 테스트 통과 |
-| 02 스키마 | docs/ko/02-strapi-schema.html | 완료 (메뉴판 그림으로 4가지 그릇 설명) |
-| 03 데이터·API | docs/ko/03-data-and-api.html | 완료 (403/401/200 토큰 원리) |
-| 04 Next.js | docs/ko/04-nextjs-page.html | 완료 (타입 자동 생성, 화면은 "받은 값이 어디에 나오나"를 부분 코드+부분 스크린샷으로) |
-| 05 GitHub·CI | docs/ko/05-github-ci.html | 한국어 2차안(참고 자료 형식으로 축약, 담당자 검토 대기, PR #2). PR #1 squash 머지(58d6e5a), Ruleset·머지 방식 설정 완료, main CI 통과 |
-| 06 배포(CD) | - | **진행 중(PR #3)**: 스택 3개 재설계 완료, 토대 스택 배포·GitHub 시크릿 등록 완료 → 머지 → 첫 배포 → 운영 초기 설정(관리자 등록·데이터·토큰) → 01~06장 문서 정리 |
-| 07 변경을 운영까지 | - | 마무리 장(예정): 작은 변경(예: 토핑에 필드 추가 → 타입 재생성 → 화면) → PR → CI → 머지 → CD → 운영 화면에서 반영 확인 |
-| 01~04 정리 | - | 나중에 한꺼번에: 참고 자료 형식(핵심·발췌 + "전체: 경로")으로 축약 (담당자 지시, 2026-09-27) |
+| 00 전체 구조 | docs/ko/00-overview.html | 완료 (06장 재설계에 맞춰 흐름·장 구성 갱신) |
+| 01 로컬 환경 | docs/ko/01-local-setup.html | **참고 자료 형식으로 축약**(2026-09-27, 발췌는 01장 커밋 a0b54d6 과 일치 확인) |
+| 02 스키마 | docs/ko/02-strapi-schema.html | 축약: 그릇 개념은 유지, 조작 단계를 표 1개로, 더 해보기 삭제 |
+| 03 데이터·API | docs/ko/03-data-and-api.html | 축약: 데이터 입력을 표 1개로, 토큰 원리 유지 |
+| 04 Next.js | docs/ko/04-nextjs-page.html | 축약: menu.ts 발췌를 getShop 만으로 |
+| 05 GitHub·CI | docs/ko/05-github-ci.html | PR 전용 CI·공용 빌드 액션(.github/actions/build-image)에 맞춰 갱신 |
+| 06 배포(CD) | docs/ko/06-deploy.html | **초안 완료**(스크린샷 3장: deploy 실행·운영 관리자 등록 화면·운영 사이트). 틀·빌드 스크립트 `.claude/doc-src/` |
+| 07 변경을 운영까지 | - | **다음 작업**: 작은 변경(예: 토핑에 필드 추가 → 타입 재생성 → 화면) → PR → CI → 머지 → CD → 운영 확인 |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
 장별 커밋 (pnpm 12 로 재작성 → 2026-09-27 메시지 일본어화. 이전: `backup/pre-pnpm12`, `backup/pre-ja-msg`):
@@ -38,7 +37,7 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - 이미지: `next/image` + `unoptimized` (Next 16 은 localhost 이미지 최적화를 기본 거부)
 - AWS(06장): 도쿄, VPC+NAT1, Aurora Serverless v2 PostgreSQL, ECS Fargate(web/cms) + 내부 ALB + CloudFront VPC Origin ×2(도메인 없음), S3 미디어, Secrets Manager, prod 1환경
 - 배포: main 머지 → deploy.yml `publish (web/cms)`(빌드·Trivy·ECR push, 태그=커밋 SHA) → `deploy`(3tier-prod 환경, `cdk deploy --all -c imageTag=SHA`, 빌드 안 함). 로컬은 bootstrap·토대 스택(`pnpm -F infra foundation deploy --profile mfa -c githubSubjectPrefix="$(gh api repos/{owner}/{repo}/actions/oidc/customization/sub --jq .sub_claim_prefix)"`)만
-- AWS 상태(2026-09-27): CDKToolkit, ThreeTierFoundation(ECR 3tier/web·3tier/cms, ImagePushRole, DeployRole) 배포됨. 옛 ThreeTierGithubOidc 삭제. GitHub 시크릿: 저장소 `AWS_IMAGE_PUSH_ROLE_ARN`, 환경 3tier-prod `AWS_DEPLOY_ROLE_ARN`
+- AWS 상태(2026-09-27): CDKToolkit, ThreeTierFoundation, ThreeTierData, ThreeTierApp 모두 배포됨(첫 배포 성공, main 54878a3). 운영 관리자 등록·데이터 입력·운영 API 토큰(Secrets Manager)·web 재시작 완료, 사이트·사진(CloudFront /uploads)·API 잠금(403) 확인. 운영 관리자 계정은 담당자 PC 의 키체인(서비스 `3tier-strapi-admin`)에 보관. 켜 두면 하루 약 $5 → 연수 후 06장 9절 순서로 삭제. 옛 ThreeTierGithubOidc 삭제. GitHub 시크릿: 저장소 `AWS_IMAGE_PUSH_ROLE_ARN`, 환경 3tier-prod `AWS_DEPLOY_ROLE_ARN`
 - CI: Biome, typecheck, build, gitleaks, Docker 빌드, Trivy + lefthook(커밋 전). GitHub: Ruleset, Environment `3tier-prod`(승인자는 보류 — decisions.md), Secret scanning (public 저장소, 회사 플랜에서 안 되면 생략 가능하게 표기)
 
 ## 검증 방법 (문서 ↔ 저장소 일치)
@@ -59,6 +58,7 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - GitHub 저장소 설정 변경은 Claude Code auto mode 분류기에 막힐 수 있음 → 담당자가 조작, Claude 는 읽기 전용 캡처·API 확인
 - GitHub 캡처는 페이지 안에서 아바타(img[src*=avatars])와 사용자명 텍스트에 CSS blur 를 건 뒤 찍는다. 문서 이미지: docs/assets/img/github/
 - 문서 생성: scratchpad 의 05.src.html 틀 + build05.py(`{{FILE:경로}}`·`{{EXCERPT:경로:시작:끝}}` 를 `git show main:경로` 로 채움). 세션이 바뀌면 틀은 docs/ko/05-github-ci.html 을 직접 고친다
+- 06장: `.claude/doc-src/06.src.html` 틀의 `{{EX:경로:시작:끝}}`(작업 트리 파일의 줄 발췌)·`{{IMG:파일|설명}}` 을 `python3 .claude/doc-src/build06.py .claude/doc-src/06.src.html docs/ko/06-deploy.html` 로 채운다. 코드 줄 번호가 바뀌면 틀의 번호를 고친다
 - 06장: Strapi `config/plugins.ts`(S3 upload provider), `config/middlewares.ts`(CSP 에 이미지 도메인), 운영 토큰은 운영 Strapi 에서 따로 발급→Secrets Manager, 첫 관리자 등록은 배포 직후 바로(선점 위험)
 - 회사 환경 인수 목록: CDK bootstrap 1회, GitHub OIDC Provider 계정당 1개, VPC/EIP 한도, Docker Desktop 라이선스, GitHub 플랜별 기능
 

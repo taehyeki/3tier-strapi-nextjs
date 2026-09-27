@@ -130,7 +130,7 @@
   <li><strong>브랜치에 push</strong>: <code>main</code>에 바로 넣지 않고 작업용 브랜치에 올립니다.</li>
   <li><strong>Pull Request(PR)</strong>: "이 변경을 반영해 주세요"라는 요청입니다. 이때 <strong>CI</strong>(자동 검사: 코드 형식, 빌드, 시크릿 유출 검사 등)가 자동으로 돕니다.</li>
   <li><strong>리뷰 후 머지</strong>: 검사를 통과하고 리뷰가 끝나면 <code>main</code>에 합칩니다.</li>
-  <li><strong>자동 배포(CD)</strong>: <code>main</code>이 바뀌면 GitHub Actions가 AWS에 배포합니다. 사람이 AWS 콘솔을 만질 필요가 없습니다.</li>
+  <li><strong>자동 배포(CD)</strong>: <code>main</code>이 바뀌면 GitHub Actions가 앱 이미지를 한 번 만들어 검사·보관(ECR)하고, 그 이미지로 AWS를 갱신합니다. 사람이 AWS 콘솔을 만질 필요가 없습니다.</li>
 </ol>
 
 <h2>5. 코드로 하는 일, 화면으로 하는 일</h2>
@@ -140,7 +140,7 @@
   · 저장소 뼈대, DB 컨테이너 (01장)<br>
   · Strapi 설치 시 DB 연결 설정 (자동 생성)<br>
   · Next.js 화면 (04장). 화면은 코드로 만듭니다<br>
-  · 배포 준비 (06장): 사진을 S3에 저장하는 설정(<code>config/plugins.ts</code>), S3 사진 표시 허용(<code>config/middlewares.ts</code>), Dockerfile<br>
+  · 배포 준비 (05·06장): Dockerfile, 운영에서만 쓰는 Strapi 설정(<code>config/env/production/</code>: 사진을 S3에 저장 등), AWS 구성(<code>infra/</code>)<br>
   · CI/CD 설정 (05·06장)</p></div>
   <div class="card"><h4>🖱️ Strapi 관리자 화면에서 하는 일</h4><p>
   · 데이터 구조(스키마) 설계. <strong>로컬에서만</strong> 합니다 (02장)<br>
@@ -169,7 +169,8 @@
   <li><span class="no">03</span><a href="03-data-and-api.html">데이터 입력과 API</a>: 입력, 공개, 토큰 발급</li>
   <li><span class="no">04</span><a href="04-nextjs-page.html">Next.js 화면</a>: 서버에서 안전하게 데이터 가져오기</li>
   <li><span class="no">05</span><a href="05-github-ci.html">GitHub와 CI</a>: PR마다 자동 검사, 통과해야만 main에 머지</li>
-  <li><span class="no">06</span>배포(CD): AWS로 자동 배포, 운영 초기 설정 (작성 중)</li>
+  <li><span class="no">06</span><a href="06-deploy.html">배포(CD)</a>: main 머지 → AWS 자동 배포, 운영 초기 설정</li>
+  <li><span class="no">07</span>변경을 운영까지: 작은 변경을 PR → CI → 머지 → 배포로 보내 보기 (작성 예정)</li>
 </ul>
 
 <nav class="pager"><span></span><a href="01-local-setup.html">01 로컬 개발환경 →</a></nav>

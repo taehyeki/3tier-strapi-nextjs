@@ -18,67 +18,22 @@
 
 <div class="note">여기서 입력하는 <strong>데이터는 이 PC의 DB에만</strong> 저장됩니다. Git에도 들어가지 않고, 운영 환경으로 배포되지도 않습니다. 운영에서는 운영 관리자 화면에서 다시 입력합니다(06장).</div>
 
-<h2>1. 사진 올리기</h2>
-<p>왼쪽 메뉴의 <strong>Content Manager</strong> → <strong>Shop</strong>을 열고, photo 칸을 클릭해서 <strong>Add more assets</strong>를 누릅니다. 여러분 사이트에 쓸 사진을 골라 업로드합니다. 여러 장을 한 번에 올릴 수 있습니다.</p>
-<figure><img src="../assets/img/data/01-upload.png" alt="사진 업로드"><figcaption>한 번 올린 사진은 Media Library에 모여서, 다른 항목에서도 골라 쓸 수 있습니다</figcaption></figure>
-<p>업로드가 끝나면 이 칸에 넣을 사진을 골라 Finish를 누릅니다.</p>
-
-<h2>2. 가게 정보(Shop) 입력과 공개</h2>
-<p>나머지 칸을 채웁니다. 아래는 이 자료에서 입력한 <strong>예시</strong>입니다.</p>
+<h2>1. 데이터 입력과 공개</h2>
+<p>왼쪽 메뉴의 <strong>Content Manager</strong>에서 02장에서 만든 그릇마다 데이터를 입력합니다. 순서는 <strong>연결될 쪽을 먼저</strong>: Topping·Extra를 만든 뒤 Menu에서 그것들을 고릅니다.</p>
+<figure><img src="../assets/img/data/07-relations.png" alt="관계 선택"><figcaption>Menu 입력 화면의 extras·toppings. 원본은 Topping·Extra 쪽에 있고, 여기서는 "연결"만 합니다(02장의 선)</figcaption></figure>
 <table>
-<tr><th>필드</th><th>입력 값</th></tr>
-<tr><td>name</td><td>麺屋ヤマモリ</td></tr>
-<tr><td>catchphrase</td><td>野菜マシマシ、ニンニクが効いたキム系ラーメン</td></tr>
-<tr><td>address</td><td>東京都新宿区〇〇 1-2-3</td></tr>
-<tr><td>businessHours</td><td>昼 11:00〜15:00<br>夜 17:30〜21:00</td></tr>
-<tr><td>closedDays</td><td>水曜日</td></tr>
-<tr><td>ticketRule</td><td>① 入口の券売機で食券を買う<br>② 席に着いたら食券をカウンターに置く<br>③「ニンニク入れますか？」と聞かれたら、無料トッピングをコールする</td></tr>
+<tr><th>입력하는 곳</th><th>이 자료의 예시</th></tr>
+<tr><td>Shop</td><td>麺屋ヤマモリ / 野菜マシマシ、ニンニクが効いたキム系ラーメン / 주소·영업시간·정기휴일·식권 규칙 / 가게 사진</td></tr>
+<tr><td>Topping ×4</td><td>ニンニク・ヤサイ・アブラ・カラメ, levels 는 모두 ナシ / フツウ / マシ / マシマシ</td></tr>
+<tr><td>Extra ×2</td><td>ライス 100, チャーシュー 200 (사진 포함)</td></tr>
+<tr><td>Menu ×2</td><td>ラーメン: sizes small 300g 800 / medium 400g 900 / large 500g 1000, extras 2개, toppings 4개<br>つけ麺: sizes 900 / 1000 / 1100, extras ライス, toppings 4개</td></tr>
 </table>
-<figure><img src="../assets/img/data/03-shop-filled.png" alt="Shop 입력 화면"></figure>
-<p>오른쪽의 <strong>Publish</strong>를 누릅니다.</p>
-<details open>
-<summary>Save와 Publish는 무엇이 다른가요?</summary>
-<ul>
-  <li><strong>Save</strong> = 임시 저장(Draft). 관리자 화면에서만 보이고, <strong>API로는 나가지 않습니다</strong>.</li>
-  <li><strong>Publish</strong> = 공개. 이때부터 API로 가져갈 수 있습니다(= 사이트에 표시됩니다).</li>
-</ul>
-<p>"저장했는데 사이트에 안 나와요"의 원인은 대부분 Publish를 하지 않은 것입니다.</p>
-</details>
-
-<h2>3. 토핑(Topping) 입력</h2>
-<p>Content Manager → <strong>Topping</strong> → <strong>Create new entry</strong>를 누릅니다. <code>levels</code>는 <strong>Add an entry</strong>로 부품을 하나씩 추가합니다.</p>
-<figure><img src="../assets/img/data/05-repeatable-levels.png" alt="반복 컴포넌트 입력"><figcaption>반복 컴포넌트는 부품을 필요한 만큼 추가하고, 드래그로 순서를 바꿀 수 있습니다</figcaption></figure>
-<p>같은 방법으로 입력하고 각각 <strong>Publish</strong>합니다. 예시에서는 아래 4개를 넣었고, levels는 모두 「ナシ / フツウ / マシ / マシマシ」 4개입니다.</p>
-<table>
-<tr><th>name</th><th>description</th></tr>
-<tr><td>ニンニク</td><td>刻みにんにく。量はコールで選べます</td></tr>
-<tr><td>ヤサイ</td><td>もやしとキャベツ</td></tr>
-<tr><td>アブラ</td><td>背脂</td></tr>
-<tr><td>カラメ</td><td>醤油ダレを追加して味を濃く</td></tr>
-</table>
-
-<h2>4. 추가 메뉴(Extra) 입력</h2>
-<p>같은 방법으로 입력하고 Publish합니다. (예시)</p>
-<table>
-<tr><th>name</th><th>price</th><th>photo</th></tr>
-<tr><td>ライス</td><td>100</td><td>라이스 사진</td></tr>
-<tr><td>チャーシュー</td><td>200</td><td>차슈 사진</td></tr>
-</table>
-
-<h2>5. 메뉴(Menu) 입력: 부품과 관계 채우기</h2>
-<p>Content Manager → <strong>Menu</strong> → Create new entry. 사이즈는 <code>sizes</code>의 Add an entry로 3개를 추가합니다. label은 목록에서 고릅니다.</p>
-<figure><img src="../assets/img/data/06-sizes.png" alt="사이즈 입력"><figcaption>label은 02장에서 정한 small / medium / large 중에서 고릅니다</figcaption></figure>
-<p>화면 아래의 <code>extras</code>와 <code>toppings</code>에서 연결할 항목을 고릅니다. 이것이 02장에서 설계한 <strong>관계(선)</strong>입니다.</p>
-<figure><img src="../assets/img/data/07-relations.png" alt="관계 선택"><figcaption>선택한 항목이 아래에 쌓입니다. 원본은 Topping·Extra 쪽에 있고, 여기서는 "연결"만 합니다</figcaption></figure>
-<table>
-<tr><th>name (예시)</th><th>description</th><th>photo</th><th>sizes (label / 면 g / 가격)</th><th>extras</th><th>toppings</th></tr>
-<tr><td>ラーメン</td><td>極太麺と豚骨醤油スープ。野菜はコールで増やせます</td><td>라멘 사진</td><td>small 300 800<br>medium 400 900<br>large 500 1000</td><td>ライス, チャーシュー</td><td>4개 모두</td></tr>
-<tr><td>つけ麺</td><td>極太麺を濃厚なつけダレで。スープ割りもできます</td><td>츠케멘 사진</td><td>small 300 900<br>medium 400 1000<br>large 500 1100</td><td>ライス</td><td>4개 모두</td></tr>
-</table>
-<p>각각 <strong>Publish</strong>합니다.</p>
+<p>사진은 photo 칸에서 업로드합니다. 한 번 올린 사진은 <strong>Media Library</strong>에 모여서 다른 항목에서도 골라 쓸 수 있습니다. 반복 부품(sizes, levels)은 <strong>Add an entry</strong>로 필요한 만큼 추가합니다.</p>
+<div class="note"><strong>Save와 Publish는 다릅니다.</strong> Save는 임시 저장(Draft)이라 <strong>API로 나가지 않습니다.</strong> Publish를 눌러야 API로 가져갈 수 있습니다(= 사이트에 표시). "저장했는데 사이트에 안 나와요"의 원인은 대부분 Publish를 하지 않은 것입니다.</div>
 <p class="ok">Content Manager의 각 목록에서 모든 항목의 상태가 <strong>Published</strong>로 표시됩니다.</p>
 
-<h2>6. API로 꺼내 보기: 먼저 "막혀 있는지" 확인</h2>
+
+<h2>2. API로 꺼내 보기: 먼저 "막혀 있는지" 확인</h2>
 <p>Strapi는 입력한 데이터를 자동으로 <strong>API</strong>(프로그램이 데이터를 받아 가는 창구)로 제공합니다. 주소는 <code>/api/복수형이름</code>입니다.</p>
 <p class="where">실행 위치: 아무 곳 (Strapi 실행 중)</p>
 <pre><code>curl http://localhost:1337/api/menus</code></pre>
@@ -91,7 +46,7 @@
 </table>
 <p>토큰은 <strong>열쇠</strong>입니다. 열쇠를 Next.js 서버 안에만 두면, 브라우저(손님)는 Strapi에 직접 접근할 수 없고 반드시 Next.js를 거치게 됩니다(00장 흐름의 ④).</p>
 
-<h2>7. API 토큰 발급</h2>
+<h2>3. API 토큰 발급</h2>
 <p><strong>Settings</strong>(톱니바퀴) → <strong>API Tokens</strong> → <strong>Create new API Token</strong>을 누릅니다.</p>
 <table>
 <tr><th>항목</th><th>값</th><th>이유</th></tr>
@@ -101,15 +56,14 @@
 <tr><td>Permissions</td><td>Menu·Topping·Extra: <code>find</code> <code>findOne</code><br>Shop: <code>find</code></td><td><strong>읽기만</strong> 허용합니다. 만들기·수정·삭제는 허용하지 않습니다</td></tr>
 </table>
 <figure><img src="../assets/img/data/08-token-create.png" alt="토큰 권한 설정"><figcaption>find = 목록 읽기, findOne = 하나 읽기. create·update·delete는 체크하지 않습니다</figcaption></figure>
-<p>Save를 누르면 토큰이 표시됩니다. <strong>Copy</strong>로 복사합니다.</p>
-<figure><img src="../assets/img/data/09-token-created.png" alt="발급된 토큰"><figcaption>토큰은 비밀번호와 같습니다. 채팅이나 Git에 붙여 넣지 않습니다</figcaption></figure>
+<p>Save를 누르면 토큰이 <strong>한 번만</strong> 표시됩니다. Copy로 복사합니다. 토큰은 비밀번호와 같으므로 채팅이나 Git에 붙여 넣지 않습니다.</p>
 <details>
 <summary>"Read-only" 타입이 아니라 "Custom"을 고르는 이유</summary>
 <p>Read-only는 <strong>모든</strong> 데이터(회원 정보 등 다른 플러그인 포함)를 읽을 수 있습니다. Custom으로 <strong>화면에 필요한 것만</strong> 허용하면, 토큰이 유출되어도 피해가 메뉴 정보를 읽는 데서 그칩니다. 이것을 <em>최소 권한 원칙</em>이라고 합니다.</p>
 </details>
 
-<h2>8. 토큰을 붙여서 요청하기</h2>
-<p>6에서 403이 나왔던 같은 요청에, 이번에는 <strong>토큰을 함께 실어서</strong> 보냅니다.</p>
+<h2>4. 토큰을 붙여서 요청하기</h2>
+<p>2에서 403이 나왔던 같은 요청에, 이번에는 <strong>토큰을 함께 실어서</strong> 보냅니다.</p>
 <p class="where">실행 위치: 아무 곳 (Strapi 실행 중)</p>
 <pre><code>TOKEN=여기에_복사한_토큰을_붙여_넣기
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:1337/api/menus?populate=*"</code></pre>
@@ -161,7 +115,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:1337/api/menus?populate
 <p>Strapi는 기본적으로 <strong>글자와 숫자 필드만</strong> 돌려줍니다. 사진, 부품(Component), 관계(Relation)는 "함께 가져와 달라"고 요청해야 포함됩니다. <code>populate=*</code>는 "한 단계 아래까지 모두 포함"이라는 뜻입니다. 붙이지 않고 호출해서 차이를 비교해 보세요.</p>
 </details>
 
-<h2>9. 토큰을 Next.js 쪽에 저장</h2>
+<h2>5. 토큰을 Next.js 쪽에 저장</h2>
 <p>지금 curl로 한 일을 04장부터는 <strong>Next.js 서버</strong>가 합니다. 그래서 토큰은 <code>apps/web</code>에 둡니다. 두 파일을 만듭니다.</p>
 <p class="file">apps/web/.env.example (커밋함: 어떤 값이 필요한지 알려 주는 파일)</p>
 <pre><code># Next.js 서버가 Strapi 에 접속하기 위한 설정입니다. `cp .env.example .env.local` 로 복사해서 씁니다.
@@ -183,7 +137,7 @@ STRAPI_API_TOKEN=Strapi 관리자 화면에서 발급한 토큰</code></pre>
 └── package.json</pre></div>
 
 
-<h2>10. 커밋</h2>
+<h2>6. 커밋</h2>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>git status        # .env.local 이 목록에 없는지 확인 (토큰이 들어 있으므로)
 git add .
