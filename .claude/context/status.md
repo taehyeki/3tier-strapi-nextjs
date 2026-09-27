@@ -37,7 +37,7 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - 타입: `pnpm gen:types` = Strapi OpenAPI(experimental) → openapi-typescript → `apps/web/src/types/strapi.d.ts`(커밋). 스키마 변경 시 재실행
 - 이미지: `next/image` + `unoptimized` (Next 16 은 localhost 이미지 최적화를 기본 거부)
 - AWS(06장): 도쿄, VPC+NAT1, Aurora Serverless v2 PostgreSQL, ECS Fargate(web/cms) + 내부 ALB + CloudFront VPC Origin ×2(도메인 없음), S3 미디어, Secrets Manager, prod 1환경
-- 배포: main 머지 → deploy.yml `publish (web/cms)`(빌드·Trivy·ECR push, 태그=커밋 SHA) → `deploy`(3tier-prod 환경, `cdk deploy --all -c imageTag=SHA`, 빌드 안 함). 로컬은 bootstrap·토대 스택(`pnpm -F infra foundation deploy -c githubRepository=<owner/repo> --profile mfa`)만
+- 배포: main 머지 → deploy.yml `publish (web/cms)`(빌드·Trivy·ECR push, 태그=커밋 SHA) → `deploy`(3tier-prod 환경, `cdk deploy --all -c imageTag=SHA`, 빌드 안 함). 로컬은 bootstrap·토대 스택(`pnpm -F infra foundation deploy --profile mfa -c githubSubjectPrefix="$(gh api repos/{owner}/{repo}/actions/oidc/customization/sub --jq .sub_claim_prefix)"`)만
 - AWS 상태(2026-09-27): CDKToolkit, ThreeTierFoundation(ECR 3tier/web·3tier/cms, ImagePushRole, DeployRole) 배포됨. 옛 ThreeTierGithubOidc 삭제. GitHub 시크릿: 저장소 `AWS_IMAGE_PUSH_ROLE_ARN`, 환경 3tier-prod `AWS_DEPLOY_ROLE_ARN`
 - CI: Biome, typecheck, build, gitleaks, Docker 빌드, Trivy + lefthook(커밋 전). GitHub: Ruleset, Environment `3tier-prod`(승인자는 보류 — decisions.md), Secret scanning (public 저장소, 회사 플랜에서 안 되면 생략 가능하게 표기)
 

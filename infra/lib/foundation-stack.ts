@@ -5,8 +5,13 @@ import type { Construct } from "constructs";
 import { APPS, imageRepositoryName } from "./shared";
 
 export interface FoundationStackProps extends cdk.StackProps {
-  /** "owner/repo" 형식. 이 저장소의 워크플로만 역할을 쓸 수 있다 */
-  githubRepository: string;
+  /**
+   * 이 저장소의 OIDC 토큰 sub 의 앞부분. 이 저장소의 워크플로만 역할을 쓸 수 있게 한다.
+   * GitHub API 가 알려 준다: gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+   *   2026-07-15 이후 만든 저장소: repo:<owner>@<ID>/<repo>@<ID> (불변 형식. 이름을 재사용한 다른 저장소와 구별된다)
+   *   그 전의 저장소            : repo:<owner>/<repo>
+   */
+  githubSubjectPrefix: string;
   /** 배포 job 의 GitHub Environment 이름 (deploy.yml 의 environment 와 같아야 한다) */
   githubEnvironment: string;
   /** 계정에 GitHub OIDC 공급자가 이미 있으면 true (공급자는 계정당 1개) */
@@ -36,13 +41,13 @@ export class FoundationStack extends cdk.Stack {
           url: `https://${issuer}`,
           clientIds: ["sts.amazonaws.com"],
         });
-    // "이 저장소의, 이런 job 만" 역할을 쓸 수 있다. sub 는 GitHub 가 토큰에 적어 주는 job 의 정체
-    //   환경을 지정한 job: environment:<이름> / 그 밖의 브랜치 job: ref:refs/heads/<브랜치> / PR: pull_request
+    // "이 저장소의, 이런 job 만" 역할을 쓸 수 있다. sub 는 GitHub 가 토큰에 적어 주는 job 의 정체:
+    //   <저장소 부분>:environment:<이름>(환경을 지정한 job) / :ref:refs/heads/<브랜치>(그 밖의 job) / :pull_request(PR)
     const githubJob = (sub: string) =>
       new iam.WebIdentityPrincipal(provider.oidcProviderArn, {
         StringEquals: {
           [`${issuer}:aud`]: "sts.amazonaws.com",
-          [`${issuer}:sub`]: `repo:${props.githubRepository}:${sub}`,
+          [`${issuer}:sub`]: `${props.githubSubjectPrefix}:${sub}`,
         },
       });
 

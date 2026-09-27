@@ -12,6 +12,8 @@ on:
     paths:
       - "apps/**"
       - "infra/**"
+      - "!infra/bin/foundation.ts" # 토대 스택은 CI/CD 가 아니라 로컬에서 배포한다
+      - "!infra/lib/foundation-stack.ts"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"

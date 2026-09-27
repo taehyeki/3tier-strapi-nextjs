@@ -122,12 +122,12 @@ export class Cdn extends Construct {
     props.alb.connections.allowFrom(
       vpcOriginSg,
       ec2.Port.tcp(80),
-      "CloudFront -> web",
+      "from CloudFront to web",
     );
     props.alb.connections.allowFrom(
       vpcOriginSg,
       ec2.Port.tcp(1337),
-      "CloudFront -> cms",
+      "from CloudFront to cms",
     );
   }
 }
