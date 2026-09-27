@@ -1,0 +1,73 @@
+# 앱의 Docker 이미지를 빌드하고 Trivy 로 취약점을 검사한다 (composite action = 여러 단계를 묶은 "우리 저장소 전용 액션")
+# ci.yml(PR 검사)과 deploy.yml(배포용 이미지)이 같은 단계를 쓰도록 여기에 한 번만 적는다.
+# 고칠 수 있는 HIGH·CRITICAL 취약점이 있으면 실패한다. 이미지는 러너의 Docker 에 남는다 (push 는 부르는 쪽이 한다)
+# 부르는 job 에 필요한 권한: contents: read, security-events: write (검사 결과를 Security 탭에 올리기 위해)
+name: Build and scan image
+description: Build apps/<app>/Dockerfile and scan it with Trivy
+
+inputs:
+  app:
+    description: "앱 이름 (web / cms)"
+    required: true
+  image:
+    description: "빌드한 이미지에 붙일 이름:태그"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    # 이 액션은 기본으로 Summary 에 "Docker Build summary"(캐시 적중률 등)를 붙이고, 빌드 기록 파일을 Artifacts 에 올린다
+    - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: apps/${{ inputs.app }}/Dockerfile
+        tags: ${{ inputs.image }}
+        load: true # 이 러너의 Docker 에 넣는다 (검사하기 위해. 여기서는 push 하지 않음)
+        cache-from: type=gha,scope=${{ inputs.app }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.app }}
+    # ① 결과를 SARIF 파일로 만들어 Security 탭에 올린다
+    #    (private 저장소에서 GitHub Advanced Security 가 없으면 이 두 단계는 지워도 된다)
+    - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        version: v0.74.0
+        image-ref: ${{ inputs.image }}
+        scanners: vuln
+        ignore-unfixed: true
+        severity: HIGH,CRITICAL
+        limit-severities-for-sarif: true
+        format: sarif
+        output: trivy-${{ inputs.app }}.sarif
+    - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      if: always()
+      with:
+        sarif_file: trivy-${{ inputs.app }}.sarif
+        category: trivy-${{ inputs.app }}
+    # ② 고칠 수 있는 HIGH·CRITICAL 취약점이 있으면 실패시킨다 (PR 에서는 머지를, main 에서는 배포를 막는 관문)
+    - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      env:
+        TRIVY_TABLE_MODE: detailed # 검사한 파일 수백 개의 요약표는 빼고, 찾은 취약점 표만
+      with:
+        version: v0.74.0
+        image-ref: ${{ inputs.image }}
+        scanners: vuln
+        ignore-unfixed: true
+        severity: HIGH,CRITICAL
+        format: table
+        output: trivy-${{ inputs.app }}.txt
+        exit-code: "1"
+        skip-setup-trivy: true
+    # ②의 결과 표를 실행 화면의 Summary 에 붙인다 (로그를 뒤지지 않고 바로 보이게)
+    - if: always()
+      shell: bash
+      env:
+        APP: ${{ inputs.app }}
+      run: |
+        {
+          echo "### Trivy: ${APP} (고칠 수 있는 HIGH·CRITICAL)"
+          echo '```'
+          if [ ! -f "trivy-${APP}.txt" ]; then echo "(검사 전에 실패)"
+          elif grep -q 'Total: [1-9]' "trivy-${APP}.txt"; then cat "trivy-${APP}.txt"
+          else echo "없음"; fi
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"

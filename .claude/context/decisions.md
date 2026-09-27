@@ -64,11 +64,41 @@
 - 배포 시점: **main 에 머지(push)되는 순간 배포 워크플로 시작 → `environment: production` 의 승인 후 실행** — GitHub 공식 문서의 배포 패턴
   (push main + environment 보호 규칙, OIDC). 승인이 있으면 Continuous Delivery, 없으면 Continuous Deployment. / 버린 대안: 태그·릴리스 기준 배포(릴리스 주기가 있는 제품용),
   수동 실행(workflow_dispatch)만(자동화 체험이 안 됨), staging → prod 승격(환경 1개라 해당 없음).
+- `[변경→재변경]` GitHub OIDC 역할: 콘솔 수동 → 담당자가 모범 사례를 물어 **CDK 스택(`ThreeTierGithubOidc`)을 로컬에서 1회 배포**로 확정(2026-09-27). 공급자는 계정당 1개라 기존 것을 import. 이전 기록: CDK 스택으로 만들지 않음 — 계정당 1회, 연수자도 회사에서 손으로 만든다.
+  OIDC 공급자(token.actions.githubusercontent.com)는 계정에 이미 있음. 역할: 신뢰 = 이 저장소 + Environment `3tier-prod` 의 job 만, 권한 = `cdk-hnb659fds-*` 역할로 AssumeRole 만.
+  역할 ARN 은 GitHub Environment 시크릿 `AWS_ROLE_ARN`. 로그의 계정 ID 는 `mask-aws-account-id: true`.
+- `[변경→재변경]` NAT → VPC 엔드포인트로 정했다가 **NAT Gateway 1개로 되돌림**(2026-09-27 담당자: 단순함 우선, 엔드포인트는 서비스를 빠뜨리면 배포 후에야 드러남). S3 게이트웨이 엔드포인트(무료)는 유지. 이전 검토: 앱이 인터넷으로 나갈 길이 없는 구성. 인터페이스 4개(ecr.api, ecr.dkr, secretsmanager, logs) + S3 게이트웨이.
+  도쿄 단가(Pricing API): NAT $0.062/h(월 약 $45) vs 엔드포인트 $0.014/h×8(월 약 $82). public 서브넷은 VPC Origin 필수 조건(IGW)이라 남김. Strapi 사용 통계 전송은 STRAPI_TELEMETRY_DISABLED=true.
+- `[변경→위 재설계]` 운영 이미지: **CDK `fromAsset` 이 배포 때 빌드(간단한 방법, 담당자 결정)**. 대신 CI 의 image job 을 ARM 러너로 옮겨 검사 대상과 운영의 CPU 종류를 일치시킴.
+  / 버린 대안: CI 에서 ARM64 빌드 → Trivy → ECR(커밋 SHA 태그) → 그 태그로 배포(build once — 검사한 것 = 운영이지만 ECR 선행 생성·CI 의 AWS 권한 등 단계 증가).
+- `[보류]` (2026-09-27 담당자) Environment `3tier-prod` 의 **Required reviewers 는 일단 설정하지 않음** → 지금은 main 머지 = 승인 없이 바로 배포(Continuous Deployment).
+  환경 이름은 `production` 이 아니라 `3tier-prod`(OIDC 역할의 신뢰 조건 `environment:3tier-prod` 와 일치해야 함).
+  이미지는 CI(머지 전 관문: Dockerfile 이 빌드되는가 + Trivy)와 cdk deploy(머지 후 실제 배포용 → ECR) 에서 **같은 Dockerfile 로 두 번** 빌드된다. 베이스 이미지(`node:24-alpine`)가 태그 지정이라 두 시점의 결과가 완전히 같다는 보장은 없다.
+- `[변경]` (2026-09-27 담당자: "모범 사례로 남기고 싶다, 조잡하다") **스택 3개 + build once** 로 재설계:
+  - **Foundation**(`infra/bin/foundation.ts`, 별도 CDK 앱, 담당자가 로컬 1회): ECR `3tier/web`·`3tier/cms`(태그 IMMUTABLE, 최근 20개 보관) +
+    GitHub OIDC 역할 2개 — ImagePushRole(sub `ref:refs/heads/main`, 두 저장소 push 만) / DeployRole(sub `environment:3tier-prod`, `cdk-hnb659fds-*` AssumeRole 만).
+    CI/CD 가 쓰는 것이라 CI/CD 로 만들 수 없는 것만 모음. 별도 앱이라 `cdk deploy --all` 이 건드리지 않는다. 옛 `ThreeTierGithubOidc` 스택은 삭제.
+  - **Data**(VPC·Aurora·S3·시크릿, terminationProtection) / **App**(ALB·CloudFront·ECS) — CDK 공식 모범 사례 "stateful 은 별도 스택". 스택 간 참조는 CDK 2.271 기본값 `Fn::GetStackOutput`(Export 없음 → Export 잠금 함정 없음).
+    순환 참조 2건 해결: DB 보안 그룹 허용 규칙을 App 쪽에 생성, S3 버킷 정책(OAC 읽기)을 Data 쪽에서 "이 계정의 CloudFront + uploads/*" 로 직접 작성(배포 ID 로 좁히면 순환).
+  - 이미지: **main 에서 한 번 빌드** → Trivy → ECR(태그=커밋 SHA) → `cdk deploy -c imageTag=SHA`(빌드 안 함, `fromEcrRepository`). 검사한 이미지 = 운영 이미지.
+    PR 에서는 빌드·검사만(push 안 함: 머지 전 코드에 AWS 권한을 주지 않음, PR head ≠ squash 결과 커밋). 빌드·검사 단계는 composite action `.github/actions/build-image` 로 ci.yml·deploy.yml 공용.
+    ci.yml 은 pull_request 만(main 의 SARIF 기준선은 deploy.yml publish 가 올림). 재실행 시 같은 태그가 있으면 빌드 생략(IMMUTABLE 이라 덮어쓰기 불가).
+  - 스택 env 는 **리전만**(계정 미지정) → 합성 결과가 CI·배포·로컬에서 동일, 조회 없음 → 계정 ID 가 든 `cdk.context.json` 이 안 생김(gitignore). VPC AZ 는 `<region>a`,`<region>c` 명시.
+    (처음 PR #3 커밋에 계정 ID 가 든 cdk.context.json 이 들어갔음 → 삭제 커밋. squash 라 main 에는 안 들어감. PR 기록에는 남음 — AWS 는 계정 ID 를 비밀로 보지 않음)
+  / 버린 대안: fromAsset(배포 때 재빌드, 검사한 것 ≠ 운영), 스택 1개, 앱별 스택(web/cms 가 ALB·CloudFront 공유 → 참조만 얽힘), 역할을 콘솔에서 수동(문서화는 쉽지만 재현·검토 불가), PR 에서 ECR push.
+- 리전은 bin/app.ts 에서 도쿄 고정(`-c region=` 로 변경 가능). 자격 증명 없는 합성에서 us-east-1 이 되던 문제 방지.
+- 06장 인프라 설계(2026-09-27, 공식 문서 확인. 스택 구성은 위 재설계로 변경): 스택 1개 + 층별 Construct 파일(network/database/media-bucket/app-secrets/load-balancer/cdn/cms-service/web-service/app-image).
+  CloudFront ×2 + VPC Origin → 내부 ALB(포트 80=web, 1337=cms). ALB 인바운드는 VPC Origin 전용 SG(커스텀 리소스로 조회)만. web→cms 는 ALB:1337.
+  ECS Fargate ARM64(배포는 ubuntu-24.04-arm 러너에서 네이티브 빌드), circuit breaker rollback, minHealthyPercent 100.
+  Aurora SV2 PG 17.10(CLI 의 CFN 스키마가 17.11 미지원) 0.5–2 ACU(자동 일시정지는 Strapi 커넥션 풀 때문에 효과 없고 첫 접속 지연 → 미사용), rds.force_ssl=1,
+  Strapi 는 이미지에 넣은 RDS CA 묶음(체크섬 고정, NODE_EXTRA_CA_CERTS)으로 검증. S3 비공개 + CloudFront OAC `/uploads/*`(presigned 아님, 공개 사진이므로).
+  Strapi 운영 설정은 config/env/production/*(로컬 영향 없음). HTTPS 판별은 CloudFront-Forwarded-Proto → 작은 미들웨어(ALB 가 X-Forwarded-Proto 를 http 로 붙이므로) → 관리자 쿠키 Secure.
+  이미지 빌드 범위는 루트 패키지 3개 + 그 앱 폴더만(루트 목록을 읽어 나머지 제외) → 문서·다른 앱 변경으로 재배포 안 됨.
 - 모든 작업은 **최신 공식 문서 근거**로: Context7(claude.ai 커넥터), AWS MCP(문서 검색·읽기), WebFetch 로 확인하고 출처를 노트에 남긴다(담당자 재강조 2026-09-27).
 - CI 장 문서 방침: "이 장에서 하는 것 / 하지 않는 것(자동 테스트·성능·미리보기 배포)"을 명시. 플랜 배지 대신 "public 기준, private 은 플랜에 따라 안 될 수 있음" 한 번.
 
-- AWS 변경은 GitHub Actions 안의 `cdk deploy` **하나로만**(인프라+앱, `ContainerImage.fromAsset`) — 책임 소재 단순, 드리프트 없음 / Actions 가 ECS 직접 갱신(드리프트), 이미지 빌드 분리.
-- 로컬에서 배포하지 않는다. 예외: 최초 `cdk bootstrap`, GitHub OIDC 역할(닭과 달걀).
+- AWS 변경은 GitHub Actions 안의 `cdk deploy` **하나로만**(인프라+앱. 이미지는 위 재설계에서 ECR 태그 참조로 변경) — 책임 소재 단순, 드리프트 없음 / Actions 가 ECS 직접 갱신(드리프트), 이미지 빌드 분리.
+- 로컬에서 배포하지 않는다. 예외: 최초 `cdk bootstrap`, 토대 스택(ECR·OIDC 역할 — 닭과 달걀).
 - `main` 머지 시 `apps/**`·`infra/**` 가 바뀌었을 때만 배포. 인프라만 바뀌면 앱은 CDK 가 필요할 때만 재배포(억지로 재배포하지 않음).
 - AWS 인증은 OIDC(액세스 키를 GitHub 에 두지 않음).
 - CI(PR): Biome, typecheck, build, gitleaks, Docker 빌드, Trivy(결과는 Security 탭 / 없으면 Job Summary). 로컬: lefthook(커밋 전 Biome·gitleaks).

@@ -1,0 +1,114 @@
+# main 에 머지되면 운영(AWS)에 반영한다 (CD)
+#   publish: 이미지를 빌드·검사해서 ECR 에 올린다 (태그 = 커밋 SHA). 이미지는 여기서 한 번만 만든다
+#   deploy : cdk deploy 로 인프라를 반영하고, ECS 가 방금 올린 이미지로 바뀌게 한다 (여기서는 빌드하지 않는다)
+# 먼저 있어야 하는 것: 토대 스택(ECR·IAM 역할, infra/bin/foundation.ts)과 GitHub 시크릿 2개 (06장)
+# 액션은 ci.yml 과 같은 이유로 커밋 SHA 로 고정한다
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    # 앱·인프라가 바뀌었을 때만 배포 (문서만 바뀐 머지는 배포하지 않는다)
+    paths:
+      - "apps/**"
+      - "infra/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/actions/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: # 필요할 때 Actions 화면에서 수동으로도 실행 (main 에서만 동작)
+
+# 배포는 한 번에 하나씩. 진행 중인 배포는 취소하지 않는다 (중간에 끊으면 스택이 어중간한 상태가 될 수 있다)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  IMAGE_TAG: ${{ github.sha }} # 이미지 태그 = 커밋 SHA (운영에서 도는 이미지가 어느 커밋인지 바로 알 수 있다)
+
+jobs:
+  publish:
+    name: publish (${{ matrix.app }})
+    if: github.ref == 'refs/heads/main' # 수동 실행을 다른 브랜치에서 해도 돌지 않게
+    # 운영(Fargate ARM64)과 같은 CPU 의 러너에서 에뮬레이션 없이 빌드한다
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # GitHub 가 발급하는 OIDC 토큰을 받기 위해 (AWS 인증. 액세스 키는 쓰지 않는다)
+      security-events: write # 검사 결과를 Security 탭에 올리기 위해
+    strategy:
+      fail-fast: true # 하나라도 실패하면 배포하지 않으므로 나머지도 멈춘다
+      matrix:
+        app: [web, cms]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # 이미지 올리기 전용 역할을 빌린다 (main 브랜치의 job 만 쓸 수 있는 역할. 저장소 시크릿)
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_IMAGE_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true # public 저장소의 로그에 계정 ID 가 보이지 않게
+      # 이 러너의 Docker 가 ECR 에 push 할 수 있게 로그인한다 (job 이 끝나면 자동 로그아웃)
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+      - id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: 3tier/${{ matrix.app }} # infra/lib/shared.ts 의 imageRepositoryName 과 같은 이름
+        run: |
+          echo "ref=${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          # 같은 커밋의 이미지가 이미 있으면(워크플로를 다시 실행한 경우) 빌드하지 않는다. 태그는 덮어쓸 수 없다(IMMUTABLE)
+          if aws ecr describe-images --repository-name "$REPOSITORY" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+      # 빌드 → Trivy 검사 (ci.yml 과 같은 단계). 검사를 통과한 이미지만 다음 단계에서 올라간다
+      - if: steps.image.outputs.exists != 'true'
+        uses: ./.github/actions/build-image
+        with:
+          app: ${{ matrix.app }}
+          image: ${{ steps.image.outputs.ref }}
+      - if: steps.image.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: docker push "$IMAGE"
+
+  deploy:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04 # 빌드하지 않으므로 보통 러너로 충분
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    # 이 환경의 보호 규칙을 통과해야 job 이 시작된다 (승인자를 정해 두면 여기서 승인 대기).
+    # AWS 쪽 배포 역할도 이 환경의 job 만 믿는다
+    environment:
+      name: 3tier-prod
+      url: ${{ steps.deploy.outputs.site-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          cache: true
+          require-lockfile: true
+      # 배포 전용 역할을 빌린다 (3tier-prod 환경의 job 만 쓸 수 있는 역할. 환경 시크릿)
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      # 데이터 스택 → 앱 스택 순서로 반영한다. 바뀐 것이 없는 스택은 아무것도 하지 않는다
+      - id: deploy
+        run: |
+          pnpm -F infra exec cdk deploy --all -c imageTag="$IMAGE_TAG" --require-approval never --outputs-file cdk-outputs.json
+          echo "site-url=$(jq -r '.ThreeTierApp.SiteUrl' infra/cdk-outputs.json)" >> "$GITHUB_OUTPUT"

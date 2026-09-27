@@ -21,7 +21,7 @@
 - Strapi 스키마·데이터·토큰은 관리자 화면에서 한다. 코드로 바꾸는 것은 config, Next.js, 배포 설정뿐.
 - 굳이 바꿀 필요가 없는 생성물(create-next-app 등)은 그대로 둔다. 변경이 적을수록 연수자가 덜 헷갈린다.
 - AWS 계정 ID, 토큰, 조직·저장소 이름은 코드·문서에 하드코딩하지 않는다 (public 저장소, 회사 이전 대비).
-- AWS 변경은 GitHub Actions 의 `cdk deploy` 로만 한다. 예외: 최초 `cdk bootstrap` 과 GitHub OIDC 역할.
+- AWS 변경은 GitHub Actions 의 `cdk deploy` 로만 한다. 예외(CI/CD 가 돌기 전에 필요한 것): 최초 `cdk bootstrap` 과 토대 스택(ECR·GitHub Actions 용 IAM 역할, `infra/bin/foundation.ts`)은 담당자가 로컬에서 1회.
 - 담당자 PC 전용 차이는 git 제외 파일로 처리한다 (예: `compose.override.yaml`).
 - 커밋 메시지·PR 제목·PR 본문은 **일본어**로 쓴다 (형식은 Conventional Commits, `종류(대상):` 는 영어). 연수자와 회사 저장소 사람이 읽기 때문.
 
@@ -60,4 +60,5 @@ notes      담당자 학습 노트 (git 제외)
 
 로컬: web·cms 는 직접 실행, DB(PostgreSQL 17)만 컨테이너.
 AWS: CloudFront ×2 (VPC Origin) → 내부 ALB → ECS Fargate (web / cms) → Aurora Serverless v2 PostgreSQL. 미디어 S3, 시크릿 Secrets Manager.
+CDK 스택 3개: Foundation(ECR·IAM 역할, 로컬 1회) / Data(VPC·Aurora·S3·시크릿, 삭제 보호) / App(ALB·CloudFront·ECS). 이미지는 main 에서 한 번 빌드 → ECR(태그=커밋 SHA) → cdk deploy 는 가리키기만.
 스키마는 배포되지만 **데이터는 배포되지 않는다**.
