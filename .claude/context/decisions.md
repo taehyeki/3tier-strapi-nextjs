@@ -89,6 +89,8 @@
 - (2026-09-27, 첫 배포에서 발견) GitHub OIDC 의 **불변 subject**: 2026-07-15 이후 만든 저장소는 sub 가 `repo:<owner>@<ID>/<repo>@<ID>:…`(이름 재사용 공격 방지).
   옛 형식으로 신뢰 조건을 걸어 AssumeRoleWithWebIdentity 거부 → 토대 스택은 `-c githubSubjectPrefix="$(gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix)"`
   로 **GitHub 가 알려 주는 실제 형식**을 받는다(옛·새 저장소 모두 동작). deploy.yml 트리거에서 토대 스택 파일은 제외(로컬 배포 대상).
+- (2026-09-27, 첫 배포에서 발견) 보안 그룹 규칙의 설명은 `a-zA-Z0-9. _-:/()#,@[]+=&;{}!$*` 만 허용 — `"web -> cms"` 의 `>` 로 App 스택 생성 실패(롤백).
+  `from web to cms` 형식으로 변경. CDK CLI 의 로컬 규격 검사는 이 규칙을 잡지 못한다(IAM 설명의 Latin-1 제한은 잡았음). AWS 에 보내는 설명 문자열은 영문으로 쓴다.
 - 리전은 bin/app.ts 에서 도쿄 고정(`-c region=` 로 변경 가능). 자격 증명 없는 합성에서 us-east-1 이 되던 문제 방지.
 - 06장 인프라 설계(2026-09-27, 공식 문서 확인. 스택 구성은 위 재설계로 변경): 스택 1개 + 층별 Construct 파일(network/database/media-bucket/app-secrets/load-balancer/cdn/cms-service/web-service/app-image).
   CloudFront ×2 + VPC Origin → 내부 ALB(포트 80=web, 1337=cms). ALB 인바운드는 VPC Origin 전용 SG(커스텀 리소스로 조회)만. web→cms 는 ALB:1337.

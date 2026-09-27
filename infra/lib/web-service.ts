@@ -77,7 +77,7 @@ export class WebService extends Construct {
     props.alb.connections.allowFrom(
       this.service,
       ec2.Port.tcp(1337),
-      "web -> cms",
+      "from web to cms",
     );
   }
 }
