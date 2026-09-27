@@ -29,6 +29,10 @@
       "relation": "manyToMany",
       "target": "api::menu.menu",
       "mappedBy": "extras"
+    },
+    "soldOut": {
+      "type": "boolean",
+      "default": false
     }
   }
 }
