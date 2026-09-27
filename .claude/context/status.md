@@ -22,9 +22,9 @@
 | 06 배포(CD) | - | 미착수 |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
-장별 커밋 (2026-09-26 pnpm 12 로 재작성, push 전. 이전 히스토리는 `backup/pre-pnpm12` 브랜치):
-`4ecddab chore: 로컬 개발환경 구성` / `7a048fe feat(cms): 메뉴 스키마 추가` / `ba8c9fd chore(web): Strapi 접속 설정 예시 추가` / `92224da feat(web): 메뉴 페이지`.
-origin 에는 첫 커밋(682a56e)만 있음. 05장에서 main 을 push 하고, 이후 코드 변경은 브랜치 → PR(squash) 로 한다.
+장별 커밋 (pnpm 12 로 재작성 → 2026-09-27 메시지 일본어화. 이전: `backup/pre-pnpm12`, `backup/pre-ja-msg`):
+`a0b54d6 chore: ローカル開発環境を構築` / `e118ddf feat(cms): メニューのスキーマを追加` / `37d5e4c chore(web): Strapi 接続設定の例を追加` / `3057d62 feat(web): メニューページ`.
+origin 에는 옛 첫 커밋(682a56e, 한국어 메시지)만 있음 → main 을 force push 1회. 이후 코드 변경은 브랜치 → PR(squash) 로 한다.
 
 ## 확정된 설계 (근거는 notes/study-notes.html)
 

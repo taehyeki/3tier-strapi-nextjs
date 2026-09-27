@@ -23,6 +23,7 @@
 - AWS 계정 ID, 토큰, 조직·저장소 이름은 코드·문서에 하드코딩하지 않는다 (public 저장소, 회사 이전 대비).
 - AWS 변경은 GitHub Actions 의 `cdk deploy` 로만 한다. 예외: 최초 `cdk bootstrap` 과 GitHub OIDC 역할.
 - 담당자 PC 전용 차이는 git 제외 파일로 처리한다 (예: `compose.override.yaml`).
+- 커밋 메시지·PR 제목·PR 본문은 **일본어**로 쓴다 (형식은 Conventional Commits, `종류(대상):` 는 영어). 연수자와 회사 저장소 사람이 읽기 때문.
 
 ## 회사 저장소로 이전할 것을 전제로 한다
 
