@@ -1,0 +1,19 @@
+packages:
+  - apps/*
+  - infra
+
+# インストール時にパッケージのビルドスクリプト(postinstall など)を実行するかを決めます。
+# pnpm は基本的にすべて禁止し、ここに書かれていないパッケージがスクリプトを持っていればインストールを止めます(サプライチェーン攻撃対策)。
+# 以下のパッケージはスクリプトを実行しなくても動くので false(実行しない)にしておきます。
+# lefthook だけ true: インストール時に git hook を登録するスクリプトが必要です(05章)。
+allowBuilds:
+  "@swc/core": false
+  core-js-pure: false
+  esbuild: false
+  lefthook: true
+
+# Strapi がバージョンを厳密に固定している間接依存のうち、脆弱性が修正されたバージョンがあるものを強制的に上げます(05章の Trivy 検出)。
+# Strapi をアップデートするときは、このブロックを消して CI(Trivy)が通るか再確認します。
+overrides:
+  sharp: 0.35.4
+  nodemailer: 9.1.0

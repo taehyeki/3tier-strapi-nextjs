@@ -1,0 +1,49 @@
+# 依存関係・ビルド結果
+node_modules/
+dist/
+build/
+.next/
+out/
+.strapi/
+.tmp/
+*.tsbuildinfo
+
+# CDK
+infra/cdk.out/
+infra/cdk-outputs.json
+infra/cdk.out.foundation/
+# CDK の照会結果キャッシュ。アカウント ID が入るので public リポジトリには上げない(照会が不要になるように書いた)
+infra/cdk.context.json
+cdk.context.json.bak
+
+# 環境変数(絶対にコミットしない。例は .env.example で)
+.env
+.env.*
+!.env.example
+
+# Strapi のローカルアップロードファイル(データは git ではなく DB/S3 にある)
+apps/cms/public/uploads/*
+!apps/cms/public/uploads/.gitkeep
+
+# 担当者専用(AI 作業設定・レビュー記録・学習ノート・サンプル写真)。研修者に配るのは docs/ とコードだけ
+# (ラーメン店のデータ・写真は提供しない方針。00章参照)
+# ルートの AGENTS.md・CLAUDE.md は AI エージェント向けの内部運用メモ(社内移行計画などを含む)なので同様に除外。
+# apps/web/AGENTS.md・CLAUDE.md は Next.js が自動生成する開発ツール向けファイルなので対象外。
+.claude/
+notes/
+assets/sample-images/
+/AGENTS.md
+/CLAUDE.md
+
+# その他
+.DS_Store
+*.log
+
+# Playwright MCP の作業ログ
+.playwright-mcp/
+
+# 個人 PC 専用の compose 設定
+compose.override.yaml
+
+# Strapi が生成する OpenAPI 仕様(型生成の中間生成物)
+apps/cms/openapi.json

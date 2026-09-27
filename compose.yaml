@@ -1,0 +1,21 @@
+# ローカル開発用の DB です。アプリ(web/cms)はコンテナではなく pnpm dev で直接実行します。
+# 本番(Aurora PostgreSQL)と同じメジャーバージョンを使います。
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: strapi
+      POSTGRES_USER: strapi
+      POSTGRES_PASSWORD: strapi # ローカル専用の値。本番のパスワードは Secrets Manager が生成します
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data # コンテナを消してもデータが残るように
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strapi -d strapi"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-data:
