@@ -85,7 +85,7 @@ jobs:
         with:
           sarif_file: trivy-${{ matrix.app }}.sarif
           category: trivy-${{ matrix.app }}
-      # ② 고칠 수 있는 HIGH·CRITICAL 취약점이 있으면 실패시킨다 (로그에 표로 출력)
+      # ② 고칠 수 있는 HIGH·CRITICAL 취약점이 있으면 실패시킨다 (이것이 머지를 막는 관문)
       - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           version: v0.74.0
@@ -94,5 +94,17 @@ jobs:
           ignore-unfixed: true
           severity: HIGH,CRITICAL
           format: table
+          output: trivy-${{ matrix.app }}.txt
           exit-code: "1"
           skip-setup-trivy: true
+      # ②의 결과 표를 실행 화면의 Summary 에 붙인다 (로그를 뒤지지 않고 바로 보이게. 추가 권한 불필요)
+      - if: always()
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          {
+            echo "### Trivy: ${APP} (고칠 수 있는 HIGH·CRITICAL)"
+            echo '```'
+            cat "trivy-${APP}.txt" 2>/dev/null || echo "(검사 전에 실패)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

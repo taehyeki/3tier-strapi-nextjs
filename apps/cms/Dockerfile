@@ -19,11 +19,18 @@ ENV NODE_ENV=production
 RUN pnpm -F cms build
 # 실행에 필요한 것만 /out 에 모은다 (devDependencies 제외)
 RUN pnpm --filter cms deploy --prod /out && cp -R apps/cms/dist /out/dist
+# 관리자 화면 빌드 도구 vite 와, vite 전용으로 딸려 온 옛 esbuild(0.21.5)는 위의 build 에서만 쓴다.
+# Strapi 가 dependencies 로 선언해서 /out 에 딸려 오므로, 운영 이미지로 옮기기 전에 뺀다 (취약점·공격 대상 축소).
+# 주의: esbuild 는 두 벌 있다. 새 버전(0.28.x)은 strapi 명령이 시작할 때 불러오므로(없으면 기동 실패) 남긴다.
+RUN rm -rf /out/node_modules/.pnpm/vite@* /out/node_modules/.pnpm/esbuild@0.21.5 /out/node_modules/.pnpm/@esbuild+*@0.21.5
 
 # ---- 2단계: 실행 ----
 FROM base AS runtime
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=1337
+# 실행에는 npm 이 필요 없다. 베이스 이미지에 들어 있는 npm·corepack 을 지워 취약점과 공격 도구를 줄인다
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=build --chown=node:node /out ./
 # Strapi 는 시작할 때 업로드 폴더가 있는지 확인한다 (.gitkeep 은 이미지에 들어가지 않으므로 만든다)
 RUN mkdir -p public/uploads && chown node:node public/uploads

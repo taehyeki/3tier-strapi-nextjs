@@ -11,3 +11,9 @@ allowBuilds:
   core-js-pure: false
   esbuild: false
   lefthook: true
+
+# Strapi 가 버전을 정확히 고정한 간접 의존 중, 취약점이 고쳐진 버전이 있는 것을 강제로 올립니다 (05장 Trivy 검출).
+# Strapi 를 업데이트할 때는 이 블록을 지우고, CI(Trivy)가 통과하는지 다시 확인합니다.
+overrides:
+  sharp: 0.35.4
+  nodemailer: 9.1.0

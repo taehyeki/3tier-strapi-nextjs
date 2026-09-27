@@ -19,6 +19,9 @@ RUN pnpm -F web build
 # ---- 2단계: 실행 (빌드 도구·소스 없이, 실행에 필요한 파일만) ----
 FROM base AS runtime
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+# 실행에는 npm 이 필요 없다. 베이스 이미지에 들어 있는 npm·corepack 을 지워 취약점과 공격 도구를 줄인다
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=build --chown=node:node /repo/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build --chown=node:node /repo/apps/web/public ./apps/web/public
