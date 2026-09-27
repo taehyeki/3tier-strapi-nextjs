@@ -18,7 +18,7 @@
 | 02 스키마 | docs/ko/02-strapi-schema.html | 완료 (메뉴판 그림으로 4가지 그릇 설명) |
 | 03 데이터·API | docs/ko/03-data-and-api.html | 완료 (403/401/200 토큰 원리) |
 | 04 Next.js | docs/ko/04-nextjs-page.html | 완료 (타입 자동 생성, 화면은 "받은 값이 어디에 나오나"를 부분 코드+부분 스크린샷으로) |
-| 05 GitHub·CI | docs/ko/05-github-ci.html | 한국어 초안 완료(담당자 검토 대기). PR #1 squash 머지(58d6e5a), Ruleset·머지 방식 설정 완료, main CI 통과 |
+| 05 GitHub·CI | docs/ko/05-github-ci.html | 한국어 2차안(참고 자료 형식으로 축약, 담당자 검토 대기, PR #2). PR #1 squash 머지(58d6e5a), Ruleset·머지 방식 설정 완료, main CI 통과 |
 | 06 배포(CD) | - | **다음 작업** |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
@@ -60,6 +60,8 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - 회사 환경 인수 목록: CDK bootstrap 1회, GitHub OIDC Provider 계정당 1개, VPC/EIP 한도, Docker Desktop 라이선스, GitHub 플랜별 기능
 
 ## 문서 작성 규칙 요약 (상세: .claude/skills/write-guide)
+
+- **2026-09-27 변경**: 코드는 저장소로도 제공 → 문서는 참고 자료(핵심·짧은 발췌 + "전체: `경로`"). 이전·더 해보기 없음. 05장부터 적용, 01~04장 적용 여부는 담당자 확인 대기
 
 - 톤: "이런 방식으로 한다, 참고해서 자기 것을 만든다". 예시 값은 (예시), 사진 등 소재는 제공 안 함
 - 대상은 프론트·백엔드 개념이 처음인 사람. 연결·설정·보안·빌드 코드는 싣고, 화면 코드는 디자인을 뺀 요약으로 "받은 값이 어디에 나오나"만 (실제 화면과 다를 수 있다고 명시)

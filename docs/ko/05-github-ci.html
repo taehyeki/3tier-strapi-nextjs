@@ -11,109 +11,53 @@
 <header class="chapter">
   <div class="no">CHAPTER 05</div>
   <h1>GitHub와 CI: 검사를 통과한 코드만 main에 들어가게 하기</h1>
-  <p class="lead">지금까지 만든 코드를 GitHub에 올리고, 변경할 때마다 <strong>기계가 자동으로 검사(CI)</strong>하게 만듭니다. 그리고 검사를 통과하지 못한 코드는 main에 합칠 수 없도록 저장소를 설정합니다. 06장의 자동 배포는 이 main을 기준으로 움직입니다.</p>
+  <p class="lead">코드를 바꿀 때마다 <strong>기계가 자동으로 검사(CI)</strong>하고, 통과한 코드만 main에 합쳐지게 만듭니다. 06장의 자동 배포는 이 main을 기준으로 움직이므로, 여기서 막은 문제는 운영에 가지 않습니다. 이 장은 흐름과 핵심을 설명하고, 자세한 설정은 저장소의 실제 파일을 안내합니다.</p>
 </header>
 
-<p class="goal">PR을 만들면 CI 4개(코드 검사·시크릿 검사·이미지 빌드와 취약점 검사 ×2)가 자동으로 돌고, 모두 ✓일 때만 main에 squash로 머지할 수 있는 상태를 만든다.</p>
+<p class="goal">PR을 만들면 CI가 자동으로 돌고, 모두 통과해야만 main에 머지할 수 있는 저장소를 만든다.</p>
 
-<h2>0. 이 장에서 만드는 것</h2>
-<p>문제가 있는 코드가 main에 들어가지 못하도록 <strong>세 겹</strong>으로 막습니다. 앞쪽일수록 빠르게 알려 주고, 뒤쪽일수록 건너뛸 수 없습니다.</p>
+<h2>1. 전체 흐름</h2>
+<p>작업은 main이 아니라 <strong>브랜치</strong>(작업용 사본)에서 하고, <strong>PR</strong>(Pull Request, "이 변경을 main에 합쳐 달라"는 신청서)로 합칩니다. 문제 있는 코드는 세 곳에서 막습니다.</p>
 <figure>
-<svg viewBox="0 0 860 220" width="100%" role="img" aria-label="세 겹의 검사">
+<svg viewBox="0 0 860 200" width="100%" role="img" aria-label="세 겹의 검사">
   <style>.b{fill:var(--card);stroke:var(--line);stroke-width:1.5}.a{fill:none;stroke:var(--accent,#c2410c);stroke-width:2;marker-end:url(#m5)}.t{fill:var(--fg);font-size:14px;font-weight:700}.s{fill:var(--muted);font-size:12px}</style>
   <defs><marker id="m5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#c2410c)"/></marker></defs>
-  <rect class="b" x="10" y="30" width="190" height="150" rx="12"/>
-  <text class="t" x="24" y="56">① 내 PC</text>
-  <text class="s" x="24" y="80">git commit 직전</text>
-  <text class="s" x="24" y="104">lefthook</text>
-  <text class="s" x="24" y="122">· Biome(코드 모양·실수)</text>
-  <text class="s" x="24" y="140">· gitleaks(시크릿)</text>
-  <text class="s" x="24" y="164">몇 초 · 건너뛸 수 있음</text>
-  <path class="a" d="M200,105 L240,105"/>
-  <rect class="b" x="240" y="30" width="190" height="150" rx="12"/>
-  <text class="t" x="254" y="56">② GitHub</text>
-  <text class="s" x="254" y="80">git push 순간</text>
-  <text class="s" x="254" y="104">Push protection</text>
-  <text class="s" x="254" y="122">(알려진 토큰 형식이면</text>
-  <text class="s" x="254" y="140"> push 거부)</text>
-  <text class="s" x="254" y="164">GitHub 기본 기능</text>
-  <path class="a" d="M430,105 L470,105"/>
-  <rect class="b" x="470" y="30" width="200" height="150" rx="12"/>
-  <text class="t" x="484" y="56">③ CI (GitHub Actions)</text>
-  <text class="s" x="484" y="80">PR을 만들 때마다</text>
-  <text class="s" x="484" y="104">check · secrets</text>
-  <text class="s" x="484" y="122">image (web) · image (cms)</text>
-  <text class="s" x="484" y="146">깨끗한 환경에서 매번</text>
-  <text class="s" x="484" y="164">몇 분</text>
-  <path class="a" d="M670,105 L710,105"/>
-  <rect class="b" x="710" y="30" width="140" height="150" rx="12"/>
-  <text class="t" x="724" y="56">Ruleset</text>
-  <text class="s" x="724" y="80">③이 전부 ✓</text>
-  <text class="s" x="724" y="98">일 때만</text>
-  <text class="s" x="724" y="116">Merge 가능</text>
-  <text class="s" x="724" y="146">→ main</text>
-  <text class="s" x="10" y="208">CI는 결과만 표시합니다. "✓가 아니면 머지 금지"를 강제하는 것은 Ruleset(저장소 설정)입니다. 둘은 한 세트입니다.</text>
+  <rect class="b" x="10" y="20" width="190" height="140" rx="12"/>
+  <text class="t" x="24" y="46">① 내 PC (커밋 직전)</text>
+  <text class="s" x="24" y="72">lefthook</text>
+  <text class="s" x="24" y="92">· 코드 모양·실수 (Biome)</text>
+  <text class="s" x="24" y="112">· 시크릿 (gitleaks)</text>
+  <text class="s" x="24" y="142">몇 초 · 건너뛸 수 있음</text>
+  <path class="a" d="M200,90 L240,90"/>
+  <rect class="b" x="240" y="20" width="190" height="140" rx="12"/>
+  <text class="t" x="254" y="46">② GitHub (push 순간)</text>
+  <text class="s" x="254" y="72">Push protection</text>
+  <text class="s" x="254" y="92">알려진 토큰 형식이면</text>
+  <text class="s" x="254" y="112">push 자체를 거부</text>
+  <text class="s" x="254" y="142">GitHub 기능</text>
+  <path class="a" d="M430,90 L470,90"/>
+  <rect class="b" x="470" y="20" width="200" height="140" rx="12"/>
+  <text class="t" x="484" y="46">③ CI (PR마다)</text>
+  <text class="s" x="484" y="72">GitHub Actions</text>
+  <text class="s" x="484" y="92">코드·타입·시크릿·</text>
+  <text class="s" x="484" y="112">이미지 빌드·취약점</text>
+  <text class="s" x="484" y="142">깨끗한 환경에서 매번</text>
+  <path class="a" d="M670,90 L710,90"/>
+  <rect class="b" x="710" y="20" width="140" height="140" rx="12"/>
+  <text class="t" x="724" y="46">Ruleset</text>
+  <text class="s" x="724" y="72">③이 전부 ✓</text>
+  <text class="s" x="724" y="92">일 때만 머지</text>
+  <text class="s" x="724" y="122">→ main</text>
+  <text class="s" x="10" y="188">CI는 결과(✓/✗)를 표시만 합니다. "✓가 아니면 머지 금지"를 강제하는 것은 저장소 설정(Ruleset)입니다. 둘은 한 세트입니다.</text>
 </svg>
 </figure>
-<table>
-<tr><th>단계</th><th>하는 일</th><th>끝나면</th></tr>
-<tr><td>1</td><td>GitHub 저장소 만들기와 첫 push</td><td>01~04장의 커밋이 GitHub에 있음</td></tr>
-<tr><td>2</td><td>작업 브랜치 만들기</td><td>main이 아닌 곳에서 작업</td></tr>
-<tr><td>3</td><td>커밋 전 검사(lefthook)</td><td>시크릿이 든 커밋이 막힘</td></tr>
-<tr><td>4</td><td>운영용 Docker 이미지(Dockerfile)</td><td>web·cms 이미지가 빌드됨</td></tr>
-<tr><td>5</td><td>CI 워크플로</td><td><code>ci.yml</code> 완성</td></tr>
-<tr><td>6</td><td>push와 PR</td><td>CI가 자동으로 돎</td></tr>
-<tr><td>7</td><td>CI 결과 읽기와 대응</td><td>4개 모두 ✓</td></tr>
-<tr><td>8</td><td>저장소 설정(머지 방식·Ruleset)</td><td>CI 통과 전에는 머지 불가</td></tr>
-<tr><td>9</td><td>머지</td><td>05장 완료</td></tr>
-</table>
+<p>앞쪽일수록 빨리 알려 주고, 뒤쪽일수록 건너뛸 수 없습니다. 같은 검사를 여러 곳에 두는 이유입니다.</p>
 
 <!-- ============================================================ -->
-<h2>1. GitHub 저장소 만들기와 첫 push</h2>
-<p>GitHub에서 오른쪽 위 <strong>＋ → New repository</strong>를 엽니다.</p>
-<figure><img src="../assets/img/github/new-repo.png" alt="New repository 화면"><figcaption>이름만 정하고, README·.gitignore·license는 <strong>모두 추가하지 않습니다</strong>(없음). 이미 PC에 저장소가 있으므로, GitHub 쪽에 파일이 생기면 첫 push가 충돌합니다</figcaption></figure>
-<table>
-<tr><th>항목</th><th>값</th><th>이유</th></tr>
-<tr><td>Repository name</td><td>자유(예: <code>my-3tier-site</code>)</td><td></td></tr>
-<tr><td>Visibility</td><td><strong>Public</strong> 권장</td><td>이 장의 Ruleset·Secret scanning·Code scanning이 무료 플랜에서 모두 동작합니다. Private에서 쓸 수 있는 범위는 10절 표를 보세요</td></tr>
-<tr><td>README / .gitignore / license</td><td>추가하지 않음</td><td>위 캡션 참고</td></tr>
-</table>
-<p>만든 뒤 표시되는 주소로 PC의 저장소를 연결하고 올립니다.</p>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>git remote add origin https://github.com/&lt;YOUR_ACCOUNT&gt;/&lt;YOUR_REPO&gt;.git
-git push -u origin main</code></pre>
-<p class="ok">GitHub의 저장소 화면에 01~04장의 커밋과 파일이 보입니다.</p>
-<div class="note">main에 <strong>직접</strong> push하는 것은 이번이 마지막입니다. 8절의 Ruleset을 설정하면 main에는 PR을 통해서만 들어갈 수 있습니다.</div>
-
-<!-- ============================================================ -->
-<h2>2. 작업 브랜치 만들기</h2>
-<p>앞으로의 변경은 <strong>브랜치</strong>에서 하고, <strong>PR(Pull Request)</strong>로 main에 합칩니다. 브랜치는 "main을 복사한 작업용 사본", PR은 "이 사본의 변경을 main에 합쳐 달라는 신청서"입니다. 신청서가 올라오면 CI가 자동으로 검사하고, 통과해야 합칠 수 있습니다.</p>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>git switch -c ci/setup</code></pre>
-
-<!-- ============================================================ -->
-<h2>3. 커밋 전 검사 (lefthook)</h2>
-<p>git에는 특정 순간에 자동으로 스크립트를 실행하는 <strong>hook</strong>이 있습니다. <code>git commit</code> 직전에 실행되는 것이 <code>pre-commit</code> hook이고, 스크립트가 실패하면 커밋이 만들어지지 않습니다. 다만 hook 파일은 <code>.git/</code> 안에 있어서 팀원에게 공유되지 않습니다. <strong>lefthook</strong>은 규칙을 저장소의 <code>lefthook.yml</code>에 적어 두고, <code>pnpm install</code>을 할 때 각자의 PC에 hook을 자동으로 설치해 줍니다.</p>
-
-<h3>3-1. 설치</h3>
-<p>lefthook은 설치될 때 스크립트(hook 등록)를 실행해야 합니다. 01장에서 pnpm은 "허락한 패키지만 설치 스크립트를 실행"하도록 했으므로, <code>pnpm-workspace.yaml</code>의 <code>allowBuilds</code>에 먼저 허락을 추가합니다.</p>
-<p class="file">pnpm-workspace.yaml (allowBuilds 부분)</p>
-<pre><code># 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 false(실행 안 함)로 둡니다.
-# lefthook 만 true: 설치할 때 git hook 을 등록하는 스크립트가 필요합니다 (05장).
-allowBuilds:
-  "@swc/core": false
-  core-js-pure: false
-  esbuild: false
-  lefthook: true</code></pre>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>pnpm add -D -w lefthook</code></pre>
-<p><code>-w</code>는 "저장소 루트(작업공간 전체)에 추가"라는 뜻입니다. 설치가 끝나면 hook이 등록되고, 예시가 적힌 <code>lefthook.yml</code>이 생깁니다. 내용을 아래로 바꿉니다.</p>
-
-<h3>3-2. 검사 규칙</h3>
-<p class="file">lefthook.yml</p>
-<pre><code># git commit 직전에 자동으로 실행되는 검사 (lefthook)
-# 문제가 있으면 커밋이 만들어지지 않는다. 같은 검사를 GitHub Actions(CI)에서도 한 번 더 한다.
-pre-commit:
+<h2>2. 커밋 직전 검사: lefthook</h2>
+<p>git에는 <code>git commit</code> 직전에 스크립트를 실행하고, 실패하면 커밋을 멈추는 <strong>hook</strong>이 있습니다. 그런데 hook 파일은 공유되지 않는 <code>.git/</code> 안에 있습니다. <strong>lefthook</strong>은 규칙을 저장소의 <code>lefthook.yml</code>에 적어 두고, <code>pnpm install</code> 때 각자의 PC에 hook을 설치해 줍니다. 그래서 팀 전원이 같은 검사를 거칩니다.</p>
+<p>이 저장소에서는 커밋할 때 두 가지를 검사합니다.</p>
+<pre><code>pre-commit:
   parallel: true
   jobs:
     # 코드 모양 자동 수정 + 실수 검출. 고친 파일은 자동으로 다시 스테이징한다
@@ -125,184 +69,30 @@ pre-commit:
     - name: gitleaks
       run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --pre-commit --staged --redact --verbose /repo</code></pre>
 <table>
-<tr><th>항목</th><th>의미 / 왜</th></tr>
-<tr><td><code>parallel: true</code></td><td>두 검사를 동시에 실행해 기다리는 시간을 줄입니다</td></tr>
-<tr><td><code>glob</code></td><td>이 확장자의 파일을 커밋할 때만 Biome을 실행합니다</td></tr>
-<tr><td><code>{staged_files}</code></td><td>"이번에 커밋할 파일 목록"으로 바뀝니다. 전체가 아니라 바뀐 파일만 검사해서 빠릅니다</td></tr>
-<tr><td><code>--write</code> + <code>stage_fixed: true</code></td><td>코드 모양은 자동으로 고치고, 고친 내용을 다시 커밋 대상에 넣습니다. <code>stage_fixed</code>가 없으면 "고치기 전" 내용이 커밋됩니다</td></tr>
-<tr><td>gitleaks <code>--pre-commit --staged</code></td><td>아직 커밋되지 않은 변경만 검사합니다. 시크릿이 <strong>커밋 자체가 되지 않아</strong> 히스토리에 남지 않습니다</td></tr>
-<tr><td><code>--redact</code></td><td>찾은 값을 화면에 <code>REDACTED</code>로 가립니다</td></tr>
-<tr><td>Docker로 gitleaks 실행</td><td>Docker는 01장에서 설치했으므로 Mac·Windows 모두 따로 설치할 것이 없습니다. CI와 같은 버전을 씁니다</td></tr>
+<tr><th>검사</th><th>하는 일</th></tr>
+<tr><td>biome</td><td>커밋할 파일의 코드 모양을 자동으로 고치고, 흔한 실수를 찾습니다</td></tr>
+<tr><td>gitleaks</td><td>비밀번호·토큰처럼 보이는 문자열이 있으면 <strong>커밋 자체를 막습니다.</strong> 히스토리에 남기 전에 막는 것이 핵심입니다</td></tr>
 </table>
-
-<h3>3-3. 동작 확인</h3>
-<p>시크릿처럼 보이는 문자열을 일부러 커밋해 봅니다(가짜 값입니다).</p>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>echo 'const key = "AKIAZ7XQ4JH2K9LMN3PQ";' &gt; leak-test.ts  # gitleaks:allow
-git add leak-test.ts
-git commit -m "test"
-# 확인했으면 되돌리기
-git rm --cached leak-test.ts &amp;&amp; rm leak-test.ts</code></pre>
-<p class="ok">gitleaks가 <code>leaks found: 1</code>을 출력하고 🥊 표시와 함께 커밋이 만들어지지 않습니다. 값은 <code>REDACTED</code>로 가려집니다.</p>
-<p>첫 줄 끝의 <code># gitleaks:allow</code>는 "이 줄은 검사 예외"라는 표시입니다. 이 문서처럼 <strong>설명용 가짜 값</strong>을 커밋해야 할 때만 씁니다. 셸 주석이라 <code>leak-test.ts</code>에는 기록되지 않으므로, 위 테스트는 그대로 막힙니다.</p>
-<details>
-<summary>hook만으로 충분하지 않은 이유</summary>
-<p><code>git commit --no-verify</code>로 건너뛸 수 있고, <code>pnpm install</code>을 하지 않은 사람이나 GitHub 웹 화면에서 직접 고친 경우에는 동작하지 않습니다. 그래서 같은 검사를 5절의 CI에서 한 번 더 합니다. <strong>hook은 빠른 알림, CI는 강제</strong>라는 역할 분담입니다.</p>
-<p>이미 push된 시크릿은 파일에서 지워도 히스토리에 남습니다. 그런 경우에는 그 키를 <strong>폐기하고 새로 발급</strong>하는 것이 원칙입니다.</p>
-</details>
+<p>시크릿처럼 보이는 문자열을 커밋하려 하면 이렇게 막힙니다.</p>
+<pre><code>🥊 gitleaks
+WRN leaks found: 1
+Finding:     const key = "REDACTED"
+File:        leak-test.ts</code></pre>
+<p>전체: <code>lefthook.yml</code> / lefthook은 설치 때 hook을 등록해야 하므로 <code>pnpm-workspace.yaml</code>의 <code>allowBuilds</code>에서 <code>lefthook: true</code>로 허용합니다.</p>
+<div class="note">hook은 <code>git commit --no-verify</code>로 건너뛸 수 있고, 설치하지 않은 사람에게는 동작하지 않습니다. 그래서 같은 검사를 CI에서 한 번 더 합니다. <strong>hook은 빠른 알림, CI는 강제</strong>입니다.</div>
 
 <!-- ============================================================ -->
-<h2>4. 운영용 Docker 이미지 (Dockerfile)</h2>
-<p><strong>이미지</strong>는 "앱 + 실행에 필요한 모든 것(OS 일부, Node, 패키지)"을 묶은 상자입니다. 06장에서는 이 이미지를 AWS(ECS)에서 실행합니다. 이 장에서는 CI가 PR마다 이미지를 빌드하고 검사하게 만듭니다. <strong>Dockerfile</strong>은 이 상자를 만드는 레시피입니다.</p>
-
-<h3>4-1. Next.js를 작은 이미지용으로 설정</h3>
-<p class="file">apps/web/next.config.ts</p>
-<pre><code>import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  // 실행에 필요한 파일만 .next/standalone 에 모은다 (Docker 이미지를 작게)
-  output: "standalone",
-};
-
-export default nextConfig;</code></pre>
-<p><code>next build</code>가 실행에 실제로 필요한 파일만 골라 <code>.next/standalone</code>에 모읍니다. <code>node_modules</code> 전체를 넣지 않아도 됩니다.</p>
-
-<h3>4-2. 이미지에 넣지 않을 파일</h3>
-<p class="file">.dockerignore (저장소 루트)</p>
-<pre><code># Docker 빌드에 보내지 않을 파일
-# PC 에서 만든 설치·빌드 결과가 섞이지 않게, 시크릿(.env)과 로컬 업로드 파일이 이미지에 들어가지 않게 한다
-**/node_modules
-**/.next
-**/dist
-**/.strapi
-**/.env
-**/.env.*
-!**/.env.example
-apps/cms/public/uploads/*
-.git</code></pre>
-<p>PC에서 설치한 <code>node_modules</code>(Mac용 파일)가 섞이거나 <strong><code>.env</code>의 시크릿이 이미지에 들어가는 것</strong>을 막습니다.</p>
-
-<h3>4-3. Dockerfile</h3>
-<p>두 Dockerfile 모두 <strong>멀티 스테이지</strong>입니다. 1단계(build)에서 설치·빌드하고, 2단계(runtime)에는 <strong>실행에 필요한 결과물만</strong> 옮깁니다. 1단계의 빌드 도구와 소스는 이미지에 들어가지 않습니다.</p>
-<p class="file">apps/web/Dockerfile</p>
-<pre><code># Next.js(web) 운영 이미지
-# 빌드 컨텍스트는 저장소 루트 (lockfile 이 루트에 있으므로):
-#   docker build -f apps/web/Dockerfile -t web .
-
-FROM node:24-alpine AS base
-WORKDIR /repo
-
-# ---- 1단계: 빌드 ----
-FROM base AS build
-# package.json 의 packageManager 에 적힌 pnpm 버전을 설치 (버전은 한 곳에서만 관리)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN npm install -g "$(node -p "require('./package.json').packageManager")"
-# 의존성 설치: 소스보다 먼저 package.json 만 복사해서, 소스만 바뀌면 이 단계는 캐시를 쓴다
-COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile --filter web
-COPY apps/web apps/web
-RUN pnpm -F web build
-
-# ---- 2단계: 실행 (빌드 도구·소스 없이, 실행에 필요한 파일만) ----
-FROM base AS runtime
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
-# 실행에는 npm 이 필요 없다. 베이스 이미지에 들어 있는 npm·corepack 을 지워 취약점과 공격 도구를 줄인다
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
-COPY --from=build --chown=node:node /repo/apps/web/.next/standalone ./
-COPY --from=build --chown=node:node /repo/apps/web/.next/static ./apps/web/.next/static
-COPY --from=build --chown=node:node /repo/apps/web/public ./apps/web/public
-# root 가 아닌 사용자로 실행 (컨테이너가 뚫려도 피해를 줄인다)
-USER node
-EXPOSE 3000
-CMD ["node", "apps/web/server.js"]</code></pre>
-<p class="file">apps/cms/Dockerfile</p>
-<pre><code># Strapi(cms) 운영 이미지
-# 빌드 컨텍스트는 저장소 루트 (lockfile 이 루트에 있으므로):
-#   docker build -f apps/cms/Dockerfile -t cms .
-
-FROM node:24-alpine AS base
-WORKDIR /repo
-
-# ---- 1단계: 빌드 ----
-FROM base AS build
-# package.json 의 packageManager 에 적힌 pnpm 버전을 설치 (버전은 한 곳에서만 관리)
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN npm install -g "$(node -p "require('./package.json').packageManager")"
-# 의존성 설치: 소스보다 먼저 package.json 만 복사해서, 소스만 바뀌면 이 단계는 캐시를 쓴다
-COPY apps/cms/package.json apps/cms/
-RUN pnpm install --frozen-lockfile --filter cms
-COPY apps/cms apps/cms
-# 관리자 화면(React)을 빌드하고 TypeScript 를 dist/ 로 변환
-ENV NODE_ENV=production
-RUN pnpm -F cms build
-# 실행에 필요한 것만 /out 에 모은다 (devDependencies 제외)
-RUN pnpm --filter cms deploy --prod /out &amp;&amp; cp -R apps/cms/dist /out/dist
-# 관리자 화면 빌드 도구 vite 와, vite 전용으로 딸려 온 옛 esbuild(0.21.5)는 위의 build 에서만 쓴다.
-# Strapi 가 dependencies 로 선언해서 /out 에 딸려 오므로, 운영 이미지로 옮기기 전에 뺀다 (취약점·공격 대상 축소).
-# 주의: esbuild 는 두 벌 있다. 새 버전(0.28.x)은 start 에서 쓰이지는 않지만, strapi 명령 프로그램이 켜질 때
-# build 명령의 코드까지 한꺼번에 불러오면서 함께 불러오므로 없으면 기동에 실패한다 → 남긴다.
-RUN rm -rf /out/node_modules/.pnpm/vite@* /out/node_modules/.pnpm/esbuild@0.21.5 /out/node_modules/.pnpm/@esbuild+*@0.21.5
-
-# ---- 2단계: 실행 ----
-FROM base AS runtime
-WORKDIR /app
-ENV NODE_ENV=production HOST=0.0.0.0 PORT=1337
-# 실행에는 npm 이 필요 없다. 베이스 이미지에 들어 있는 npm·corepack 을 지워 취약점과 공격 도구를 줄인다
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
-    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
-COPY --from=build --chown=node:node /out ./
-# Strapi 는 시작할 때 업로드 폴더가 있는지 확인한다 (.gitkeep 은 이미지에 들어가지 않으므로 만든다)
-RUN mkdir -p public/uploads &amp;&amp; chown node:node public/uploads
-# root 가 아닌 사용자로 실행 (컨테이너가 뚫려도 피해를 줄인다)
-USER node
-EXPOSE 1337
-CMD ["node_modules/.bin/strapi", "start"]</code></pre>
+<h2>3. CI: GitHub Actions</h2>
+<p><code>.github/workflows/</code>에 YAML 파일을 두면, GitHub이 PR을 만들 때마다 <strong>러너</strong>(GitHub이 준비하는 가상 머신)에서 그 내용을 실행합니다. 러너는 매번 새로 만들어지고 끝나면 버려지므로 "내 PC에서는 되는데"가 통하지 않습니다.</p>
+<p>이 저장소의 CI는 4개의 검사(job)를 동시에 돌립니다.</p>
 <table>
-<tr><th>기법</th><th>위치</th><th>왜</th></tr>
-<tr><td>빌드 범위 = 저장소 루트</td><td><code>docker build -f apps/…/Dockerfile .</code></td><td>lockfile(<code>pnpm-lock.yaml</code>)이 루트에 있기 때문(모노레포)</td></tr>
-<tr><td>pnpm 버전을 <code>package.json</code>에서 읽음</td><td><code>npm install -g "$(node -p …)"</code></td><td>버전을 한 곳(<code>packageManager</code>)에서만 관리</td></tr>
-<tr><td><code>package.json</code>을 먼저 복사하고 install</td><td>1단계</td><td>Docker는 각 줄의 결과를 저장해 두고, 입력이 바뀐 줄부터 다시 실행합니다. 소스만 바꾸면 설치 단계를 건너뛰어 빨라집니다</td></tr>
-<tr><td>npm·corepack 삭제</td><td>2단계</td><td>실행(<code>node server.js</code>, <code>strapi start</code>)에는 npm이 필요 없습니다. 필요 없는 도구는 취약점과 공격 수단만 늘립니다(7절)</td></tr>
-<tr><td>vite와 옛 esbuild 제외</td><td>cms 1단계 끝</td><td>관리자 화면을 <strong>빌드할 때만</strong> 쓰는 도구입니다. 2단계로 옮기기 전에 뺍니다(7절)</td></tr>
-<tr><td><code>USER node</code></td><td>2단계</td><td>root가 아닌 사용자로 실행해, 컨테이너가 뚫려도 피해를 줄입니다</td></tr>
-<tr><td><code>HOSTNAME=0.0.0.0</code> / <code>HOST=0.0.0.0</code></td><td>2단계</td><td>컨테이너 밖(06장의 로드 밸런서)에서 오는 접속을 받기 위해</td></tr>
+<tr><th>검사 이름</th><th>하는 일</th><th>막아 주는 것</th></tr>
+<tr><td><code>check</code></td><td>코드 검사(Biome), 타입 검사</td><td>오타·실수, 내 PC에서만 되는 코드</td></tr>
+<tr><td><code>secrets</code></td><td>gitleaks로 <strong>모든 커밋</strong>을 검사</td><td>과거 커밋에 섞인 시크릿(파일에서 지워도 히스토리에 남음)</td></tr>
+<tr><td><code>image (web)</code> / <code>image (cms)</code></td><td>운영과 같은 Docker 이미지를 빌드하고, Trivy로 취약점 검사</td><td>깨진 빌드, 이미지 안의 알려진 취약점</td></tr>
 </table>
-<div class="note">시크릿(<code>STRAPI_API_TOKEN</code>, <code>APP_KEYS</code> 등)은 이미지에 넣지 않습니다. 실행할 때 환경변수로 넣습니다(06장에서는 Secrets Manager → ECS).</div>
-
-<h3>4-4. PC에서 빌드해 보기</h3>
-<p class="where">실행 위치: 저장소 루트 (Strapi가 떠 있는 상태)</p>
-<pre><code>docker build -f apps/web/Dockerfile -t web:local .
-docker build -f apps/cms/Dockerfile -t cms:local .
-# web 을 실행해 로컬 Strapi 에 연결 (컨테이너 안에서 PC 를 가리키는 주소는 host.docker.internal)
-docker run --rm -p 3100:3000 --env-file apps/web/.env.local \
-  -e STRAPI_URL=http://host.docker.internal:1337 web:local</code></pre>
-<p class="ok"><code>http://localhost:3100</code>에서 04장과 같은 메뉴 페이지가 열립니다. 확인했으면 <code>Ctrl + C</code>로 멈춥니다.</p>
-
-<!-- ============================================================ -->
-<h2>5. CI 워크플로 (GitHub Actions)</h2>
-<p><strong>GitHub Actions</strong>는 저장소의 <code>.github/workflows/</code>에 있는 YAML 파일을 읽고, 정해진 순간(PR 등)에 GitHub이 준비한 가상 머신(<strong>러너</strong>)에서 명령을 실행합니다. 러너는 job마다 <strong>새로 만들어지고 끝나면 버려지는</strong> 깨끗한 환경이라서, "내 PC에서는 되는데" 같은 차이가 드러납니다.</p>
-<p class="file">.github/workflows/ci.yml</p>
-<pre><code># PR 을 만들거나 main 에 머지될 때 자동으로 실행되는 검사 (CI)
-# 액션은 태그(v1 등)가 아니라 커밋 SHA 로 고정한다. 태그는 나중에 다른 코드로 바뀔 수 있기 때문 (2026년 Trivy 사건).
-name: CI
-
-on:
-  pull_request:
-  push:
-    branches: [main]
-
-# 같은 브랜치에 새 커밋이 올라오면 이전 실행은 취소
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
-# 기본 권한은 "읽기"만. 더 필요한 job 에서만 추가한다 (최소 권한)
-permissions:
-  contents: read
-
-jobs:
-  # 코드 모양·실수(Biome)와 타입 검사
+<p>검사 하나(job)는 이런 모양입니다.</p>
+<pre><code>  # 코드 모양·실수(Biome)와 타입 검사
   check:
     # 러너 OS 는 버전을 고정한다 (ubuntu-latest 는 2026-10-19 부터 Ubuntu 26 으로 바뀜. 올릴 때는 사람이 정한다)
     runs-on: ubuntu-24.04
@@ -317,272 +107,73 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm exec biome ci
-      - run: pnpm typecheck
+      - run: pnpm typecheck</code></pre>
+<p><code>uses:</code>는 다른 사람이 만든 <strong>액션</strong>(재사용 가능한 단계)을 가져와 쓰는 것이고, <code>run:</code>은 명령을 직접 실행하는 것입니다. 전체: <code>.github/workflows/ci.yml</code></p>
 
-  # 시크릿(비밀번호·토큰)이 커밋 히스토리에 들어가지 않았는지
-  secrets:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # 전체 히스토리를 검사하기 위해
-          persist-credentials: false
-      - run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact --verbose /repo
-
-  # 운영과 같은 Docker 이미지를 빌드하고, 이미지 안의 알려진 취약점을 검사
-  image:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      security-events: write # 검사 결과를 Security 탭에 올리기 위해
-    strategy:
-      fail-fast: false
-      matrix:
-        app: [web, cms]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      # 이 액션은 기본으로 Summary 에 "Docker Build summary"(캐시 적중률 등)를 붙이고, 빌드 기록 파일을 Artifacts 에 올린다
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: .
-          file: apps/${{ matrix.app }}/Dockerfile
-          tags: ${{ matrix.app }}:ci
-          load: true # 이 러너 안에서 검사할 수 있도록 (어디에도 push 하지 않음)
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
-      # ① 결과를 SARIF 파일로 만들어 Security 탭에 올린다
-      #    (private 저장소에서 GitHub Advanced Security 가 없으면 이 두 단계는 지워도 된다)
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          version: v0.74.0
-          image-ref: ${{ matrix.app }}:ci
-          scanners: vuln
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
-          limit-severities-for-sarif: true
-          format: sarif
-          output: trivy-${{ matrix.app }}.sarif
-      - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        if: always()
-        with:
-          sarif_file: trivy-${{ matrix.app }}.sarif
-          category: trivy-${{ matrix.app }}
-      # ② 고칠 수 있는 HIGH·CRITICAL 취약점이 있으면 실패시킨다 (이것이 머지를 막는 관문)
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        env:
-          TRIVY_TABLE_MODE: detailed # 검사한 파일 수백 개의 요약표는 빼고, 찾은 취약점 표만
-        with:
-          version: v0.74.0
-          image-ref: ${{ matrix.app }}:ci
-          scanners: vuln
-          ignore-unfixed: true
-          severity: HIGH,CRITICAL
-          format: table
-          output: trivy-${{ matrix.app }}.txt
-          exit-code: "1"
-          skip-setup-trivy: true
-      # ②의 결과 표를 실행 화면의 Summary 에 붙인다 (로그를 뒤지지 않고 바로 보이게. 추가 권한 불필요)
-      - if: always()
-        env:
-          APP: ${{ matrix.app }}
-        run: |
-          {
-            echo "### Trivy: ${APP} (고칠 수 있는 HIGH·CRITICAL)"
-            echo '```'
-            if [ ! -f "trivy-${APP}.txt" ]; then echo "(검사 전에 실패)"
-            elif grep -q 'Total: [1-9]' "trivy-${APP}.txt"; then cat "trivy-${APP}.txt"
-            else echo "없음"; fi
-            echo '```'
-          } &gt;&gt; "$GITHUB_STEP_SUMMARY"</code></pre>
-
-<h3>5-1. 파일의 구성</h3>
+<h3>지키고 있는 두 가지 원칙</h3>
 <table>
-<tr><th>이름</th><th>뜻</th><th>이 파일에서</th></tr>
-<tr><td><code>on</code></td><td>언제 실행할지</td><td>PR을 만들거나 PR에 push할 때, main에 머지됐을 때</td></tr>
-<tr><td><code>concurrency</code></td><td>같은 브랜치에서 연달아 push하면 이전 실행을 취소</td><td>시간 절약</td></tr>
-<tr><td><code>permissions</code></td><td>자동 발급되는 토큰(<code>GITHUB_TOKEN</code>)의 권한. 적지 않은 권한은 전부 없음(none)</td><td>기본은 "읽기만". image job만 결과 업로드 권한 추가(<strong>최소 권한</strong>)</td></tr>
-<tr><td>job</td><td>러너 하나에서 도는 작업 묶음. job끼리는 동시에 실행</td><td><code>check</code> / <code>secrets</code> / <code>image</code></td></tr>
-<tr><td>step: <code>run</code></td><td>러너에서 명령을 실행</td><td><code>pnpm typecheck</code> 등</td></tr>
-<tr><td>step: <code>uses</code> + <code>with</code></td><td><strong>다른 사람이 만들어 공개한 액션</strong>을 가져와 실행. <code>with</code>는 그 액션에 넘기는 설정</td><td>아래 표</td></tr>
-<tr><td><code>runs-on: ubuntu-24.04</code></td><td>러너의 OS. 버전을 고정</td><td><code>ubuntu-latest</code>는 시기에 따라 새 버전으로 바뀝니다</td></tr>
-<tr><td><code>timeout-minutes</code></td><td>제한 시간</td><td>기본값 360분. 멈췄을 때 오래 붙잡지 않게</td></tr>
-</table>
-
-<h3>5-2. 사용하는 액션</h3>
-<table>
-<tr><th>액션 (만든 곳)</th><th>해 주는 일</th><th>주요 <code>with</code></th></tr>
-<tr><td><code>actions/checkout</code> (GitHub)</td><td>빈 러너에 저장소 코드를 받아 옴</td><td><code>persist-credentials: false</code>: 토큰을 디스크에 남기지 않음 / <code>fetch-depth: 0</code>: 전체 히스토리를 받음(secrets job)</td></tr>
-<tr><td><code>pnpm/setup</code> (pnpm)</td><td><code>package.json</code>의 pnpm 버전, <code>.nvmrc</code>의 Node 버전을 설치하고 <code>pnpm install</code>까지</td><td><code>cache</code>: 패키지 캐시 / <code>require-lockfile</code>: lockfile과 다르면 실패</td></tr>
-<tr><td><code>docker/setup-buildx-action</code>, <code>docker/build-push-action</code> (Docker)</td><td>이미지 빌드. 빌드 캐시를 GitHub에 저장</td><td><code>load: true</code>: 러너 안에서 검사할 수 있게(어디에도 올리지 않음) / <code>cache-*: type=gha</code>: 캐시</td></tr>
-<tr><td><code>aquasecurity/trivy-action</code> (Trivy 개발사)</td><td>이미지 안의 부품을 공개 취약점 DB와 대조</td><td><code>ignore-unfixed</code>: 고친 버전이 없는 것은 제외 / <code>severity</code>: HIGH·CRITICAL만 / <code>exit-code: "1"</code>: 찾으면 실패</td></tr>
-<tr><td><code>github/codeql-action/upload-sarif</code> (GitHub)</td><td>검사 결과를 GitHub의 Code scanning에 올림(7절)</td><td><code>category</code>: web·cms 결과를 구분</td></tr>
-</table>
-<details open>
-<summary>왜 <code>@v7</code>이 아니라 긴 영숫자(커밋 SHA)로 적나요?</summary>
-<p><code>uses:</code>는 <strong>다른 사람이 쓴 코드를 우리 CI 안에서, 우리 저장소의 토큰에 손이 닿는 상태로 실행</strong>하는 것입니다. <code>@v7.0.1</code> 같은 태그는 저장소 주인(또는 계정을 탈취한 사람)이 <strong>다른 코드로 옮길 수 있는 이름표</strong>입니다. 커밋 SHA는 코드 내용에서 계산한 값이라 내용이 바뀌면 값도 바뀝니다. 그래서 내가 확인한 코드만 실행됩니다.</p>
-<p>실제로 2026년 3월, 취약점 검사 액션 <code>trivy-action</code>의 태그 대부분이 악성 코드로 바뀌어 태그로 쓰던 많은 CI에서 시크릿이 유출됐습니다. SHA로 고정한 곳은 영향이 없었습니다. 줄 끝의 <code># v7.0.1</code> 주석은 사람이 버전을 알아보기 위한 것입니다. 올릴 때는 SHA와 주석을 함께 바꿉니다.</p>
-</details>
-
-<h3>5-3. job 3개가 하는 일</h3>
-<table>
-<tr><th>job (= 체크 이름)</th><th>하는 일</th><th>막아 주는 것</th></tr>
-<tr><td><code>check</code></td><td><code>biome ci</code>(코드 모양·실수. 파일을 고치지 않고 검사만), <code>pnpm typecheck</code>(타입)</td><td>필드 이름 오타 같은 실수, "내 PC에서만 되는" 코드</td></tr>
-<tr><td><code>secrets</code></td><td>gitleaks로 <strong>모든 커밋</strong> 검사</td><td>과거 커밋에 섞인 시크릿(파일에서 지워도 히스토리에 남음)</td></tr>
-<tr><td><code>image (web)</code> / <code>image (cms)</code></td><td>운영과 같은 이미지를 빌드(앱 빌드 포함)하고 Trivy로 검사. <code>matrix</code>로 같은 job을 web·cms 두 번 실행</td><td>깨진 Dockerfile, 이미지 안의 알려진 취약점</td></tr>
+<tr><th>원칙</th><th>이 저장소에서</th><th>왜</th></tr>
+<tr><td>액션은 <strong>커밋 SHA로 고정</strong></td><td><code>actions/checkout@3d3c42e5… # v7.0.1</code></td><td><code>@v7</code> 같은 태그는 다른 코드로 바꿔칠 수 있습니다. 2026년 3월 실제로 유명 액션의 태그가 악성 코드로 바뀌어 많은 CI에서 시크릿이 유출됐습니다. SHA는 내용이 바뀌면 값도 바뀝니다</td></tr>
+<tr><td><strong>최소 권한</strong></td><td><code>permissions: contents: read</code></td><td>CI에 자동으로 주어지는 토큰을 "읽기만"으로 제한합니다. 액션이 악성이어도 저장소를 고칠 수 없습니다</td></tr>
 </table>
 
 <!-- ============================================================ -->
-<h2>6. push와 PR</h2>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>git add -A
-git commit -m "ci: lefthook・Dockerfile・GitHub Actions の CI を追加"
-git push -u origin ci/setup</code></pre>
-<p>커밋할 때 3절의 lefthook이 동작합니다. GitHub 저장소 화면의 <strong>Pull requests → New pull request</strong>에서 base를 <code>main</code>, compare를 <code>ci/setup</code>으로 고릅니다.</p>
-<figure><img src="../assets/img/github/pr-open.png" alt="PR 작성 화면"><figcaption>제목(Title)은 커밋 메시지와 같은 형식으로 씁니다. 머지하면 이 제목이 main의 커밋 메시지가 됩니다(8절). 설명(description)에는 무엇을, 왜 바꿨는지 적습니다</figcaption></figure>
-<p><strong>Create pull request</strong>를 누르면 CI가 바로 시작됩니다.</p>
-<figure><img src="../assets/img/github/pr-checks-running.png" alt="CI 실행 중"><figcaption>PR 화면 아래쪽. 4개의 체크가 동시에 돕니다(이미지 빌드는 처음에 몇 분 걸립니다)</figcaption></figure>
-
-<!-- ============================================================ -->
-<h2>7. CI 결과 읽기와 대응</h2>
-<p>체크 이름을 누르면 실행 화면이 열립니다. 왼쪽 <strong>Summary</strong>에서 전체 결과와, image job이 붙인 Trivy 결과 표를 볼 수 있습니다.</p>
-<figure><img src="../assets/img/github/ci-run-summary.png" alt="CI 실행 Summary"><figcaption>4개 모두 ✓이고, Trivy 결과는 "없음"입니다. 그 아래의 "Docker Build summary"(캐시 적중률 등)와 Artifacts의 <code>.dockerbuild</code> 파일은 <code>docker/build-push-action</code>이 <strong>기본으로</strong> 붙이는 것입니다</figcaption></figure>
-
-<h3>7-1. Trivy가 취약점을 찾았을 때 (예시)</h3>
-<p>이미지 안에는 여러분이 직접 고르지 않은 패키지가 수천 개 들어 있습니다. 새 취약점은 매일 공개되므로, <strong>같은 코드라도 날짜에 따라 결과가 달라집니다.</strong> 이 자료를 만들 때도 처음 실행에서 web 4건, cms 32건이 나왔습니다. Summary의 표에는 패키지 이름, 취약점 번호(CVE), 고쳐진 버전(Fixed Version)이 나옵니다. 아래 순서로 판단합니다.</p>
-<table>
-<tr><th>순서</th><th>판단</th><th>이 자료에서 한 일(예시)</th></tr>
-<tr><td>① 고칠 수 있으면 올린다</td><td>고쳐진 버전이 있는가</td><td>Strapi가 버전을 고정해 둔 <code>sharp</code>, <code>nodemailer</code>를 <code>overrides</code>로 수정판으로 올림(아래)</td></tr>
-<tr><td>② 실행에 안 쓰면 뺀다</td><td>운영 실행에 그 패키지가 필요한가</td><td>베이스 이미지에 딸린 npm, 관리자 화면 빌드 전용인 vite·옛 esbuild를 운영 이미지에서 제외(4-3의 Dockerfile)</td></tr>
-<tr><td>③ 둘 다 안 되면</td><td>근거와 기한을 적고 예외로 둠</td><td>(이번에는 필요 없었음)</td></tr>
-</table>
-<p class="file">pnpm-workspace.yaml (최종)</p>
-<pre><code>packages:
-  - apps/*
-  - infra
-
-# 설치할 때 패키지의 빌드 스크립트(postinstall 등)를 실행할지 정합니다.
-# pnpm 은 기본적으로 모두 막고, 여기에 적히지 않은 패키지가 스크립트를 가지고 있으면 설치를 멈춥니다 (공급망 공격 방지).
-# 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 false(실행 안 함)로 둡니다.
-# lefthook 만 true: 설치할 때 git hook 을 등록하는 스크립트가 필요합니다 (05장).
-allowBuilds:
-  "@swc/core": false
-  core-js-pure: false
-  esbuild: false
-  lefthook: true
-
-# Strapi 가 버전을 정확히 고정한 간접 의존 중, 취약점이 고쳐진 버전이 있는 것을 강제로 올립니다 (05장 Trivy 검출).
-# Strapi 를 업데이트할 때는 이 블록을 지우고, CI(Trivy)가 통과하는지 다시 확인합니다.
-overrides:
-  sharp: 0.35.4
-  nodemailer: 9.1.0</code></pre>
-<div class="note"><code>overrides</code>는 "의존하는 패키지가 정한 버전을 무시하고 이 버전을 써라"라는 강제 지정입니다. 프레임워크가 테스트하지 않은 조합이 되므로 패치·마이너 버전 정도로 한정하고, 올린 뒤 빌드·기동을 다시 확인합니다. 여러분의 결과가 다르면 표의 순서대로 판단해 자기 것을 만드세요.</div>
-
-<h3>7-2. Security 탭과 Code scanning</h3>
-<p>Trivy 결과는 세 곳에서 쓰입니다. <strong>막는 것</strong>은 두 번째 Trivy 실행(<code>exit-code: "1"</code>), <strong>바로 보는 것</strong>은 Summary 표, <strong>기록·추적</strong>은 Code scanning입니다.</p>
-<p><strong>Code scanning</strong>은 검사기가 아니라, 여러 검사 도구의 결과를 <strong>SARIF</strong>라는 표준 형식으로 받아 보관·관리하는 GitHub의 기능입니다. GitHub이 결과를 다시 검사하지는 않습니다. <code>upload-sarif</code> 단계 하나로 GitHub 쪽에서는 다음 일이 자동으로 일어납니다.</p>
-<table>
-<tr><th>일어나는 일</th><th>설명</th></tr>
-<tr><td>경고(alert) 목록 저장</td><td>결과 하나하나가 번호·심각도·위치가 붙은 경고가 됩니다(Issue와는 별개)</td></tr>
-<tr><td>자동으로 "fixed" 처리</td><td>다음 검사 결과에 같은 경고가 없으면 "고쳐짐"으로 닫힙니다. 언제 생기고 언제 고쳐졌는지 이력이 남습니다</td></tr>
-<tr><td>PR에 체크 자동 추가</td><td><code>Code scanning results / Trivy</code>. 이 PR이 <strong>새로</strong> 만든 경고가 있는지 main과 비교합니다. 다시 검사하지 않으므로 몇 초 만에 끝납니다</td></tr>
-<tr><td>처음 1회 안내 코멘트</td><td>"Code scanning이 설정되었다"는 봇 코멘트. 한 번만 달립니다</td></tr>
-<tr><td>Security 탭 표시</td><td>기본 목록은 <strong>main 브랜치의 열린 경고</strong>입니다. PR에서 생긴 경고는 검색창에 <code>pr:번호</code>를 넣으면 보입니다</td></tr>
-</table>
-<figure><img src="../assets/img/github/code-scanning-closed.png" alt="Code scanning 경고 목록"><figcaption>Security and quality → Code scanning에서 <code>is:closed pr:1</code>로 검색한 화면. 첫 실행에서 찾은 경고가 대응 후 모두 "closed as fixed"가 되었습니다</figcaption></figure>
-<details>
-<summary>PR의 코드 줄에 경고가 표시되지 않는 이유</summary>
-<p>SARIF의 결과에는 "문제가 있는 위치(파일과 줄)"가 적혀 있고, GitHub은 이 위치가 PR에서 바꾼 줄이면 그 줄에 경고 상자를 띄웁니다. 소스 코드 검사기(예: GitHub의 CodeQL)라면 위치가 저장소 안의 파일입니다. 하지만 이미지 검사의 위치는 <code>app/node_modules/…</code>처럼 <strong>이미지 안의 경로</strong>라서 저장소에 해당하는 줄이 없습니다. 그래서 체크에 "No new alerts in code changed by this pull request"가 나옵니다. 이미지 검사 결과를 Summary에도 붙인 이유입니다.</p>
-</details>
-<div class="plan">Code scanning 업로드: public 무료 / private은 GitHub Code Security 라이선스 필요. 없으면 <code>ci.yml</code>의 ①(SARIF 생성)과 <code>upload-sarif</code> 두 단계를 지웁니다. 막는 기능(②)과 Summary는 그대로 동작합니다.</div>
-
-<!-- ============================================================ -->
-<h2>8. 저장소 설정 (머지 방식·Ruleset)</h2>
-<p>여기까지로는 CI가 ✗여도 Merge 버튼을 누를 수 있습니다. 저장소 설정으로 "통과해야만 합칠 수 있게" 만듭니다.</p>
-
-<h3>8-1. 머지 방식: squash만</h3>
-<p><strong>Settings → General → Pull Requests</strong></p>
-<figure><img src="../assets/img/github/merge-settings.png" alt="머지 방식 설정"><figcaption>변경하면 바로 저장됩니다</figcaption></figure>
-<table>
-<tr><th>항목</th><th>설정</th><th>왜</th></tr>
-<tr><td>Allow merge commits</td><td>해제</td><td>머지 전용 커밋이 섞이면 히스토리가 갈라집니다</td></tr>
-<tr><td>Allow squash merging</td><td>체크</td><td>PR 안의 커밋 여러 개("수정", "오타" 등)를 main에 <strong>커밋 1개</strong>로 합쳐 넣습니다</td></tr>
-<tr><td>└ Default commit message</td><td>Pull request title and description</td><td>PR 제목과 설명이 그대로 main의 커밋 메시지가 됩니다</td></tr>
-<tr><td>Allow rebase merging</td><td>해제</td><td>방식을 하나로 통일합니다</td></tr>
-<tr><td>Automatically delete head branches</td><td>체크</td><td>머지가 끝난 브랜치를 자동으로 지웁니다</td></tr>
-</table>
-
-<h3>8-2. Ruleset: main 보호</h3>
-<p><strong>Settings → Rules → Rulesets → New ruleset → New branch ruleset</strong>. CI가 한 번 돈 뒤에 만들어야 필수 체크 후보가 나타납니다.</p>
-<table>
-<tr><th>항목</th><th>설정</th><th>왜</th></tr>
-<tr><td>Ruleset Name</td><td>자유(예: <code>main</code>)</td><td></td></tr>
-<tr><td>Enforcement status</td><td>Active</td><td>Disabled면 적용되지 않습니다</td></tr>
-<tr><td>Bypass list</td><td>비워 둠</td><td>여기 넣은 사람은 규칙을 건너뛸 수 있습니다. 비워 두면 관리자도 예외 없이 PR을 거칩니다</td></tr>
-<tr><td>Target branches</td><td>Add target → Include default branch</td><td>main에 적용</td></tr>
-<tr><td>Restrict deletions / Block force pushes</td><td>체크(기본값)</td><td>main 삭제와 히스토리 덮어쓰기 금지</td></tr>
-<tr><td>Require a pull request before merging</td><td>체크</td><td>main에 직접 push 금지</td></tr>
-<tr><td>└ Required approvals</td><td>0</td><td>혼자 쓰는 저장소는 승인해 줄 사람이 없습니다. 팀이면 1 이상</td></tr>
-<tr><td>└ Allowed merge methods</td><td>Squash</td><td>8-1과 같은 이유</td></tr>
-<tr><td>Require status checks to pass</td><td>체크</td><td><strong>CI가 ✓가 아니면 머지 불가.</strong> 이 장에서 가장 중요한 설정</td></tr>
-<tr><td>└ Add checks</td><td><code>check</code>, <code>secrets</code>, <code>image (web)</code>, <code>image (cms)</code></td><td>검색창에 이름을 입력하면 후보가 나옵니다. 출처가 <strong>GitHub Actions</strong>인 것을 고르면, 다른 도구가 같은 이름으로 "성공"을 보내 위장하는 것을 막습니다</td></tr>
-<tr><td>└ Require branches to be up to date</td><td>해제</td><td>켜면 main이 바뀔 때마다 PR 브랜치를 갱신해야 합니다</td></tr>
-</table>
-<figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset 규칙 설정"><figcaption>"Show additional settings"를 펼친 모습. "Require an additional approval for unattributed Copilot pull requests"는 기본으로 체크되어 있지만, 승인 인원이 0이면 적용되지 않습니다</figcaption></figure>
-<div class="note">워크플로에서 job 이름을 바꾸면 Ruleset의 필수 체크도 같이 바꿔야 합니다. 바꾸지 않으면 체크가 영원히 "대기 중"이 되어 머지할 수 없습니다.</div>
-<div class="plan">Ruleset: public 무료 / private은 GitHub Pro(개인)·Team(조직) 이상. 없으면 생략 가능(그 경우 "CI ✓ 확인 후 머지"를 사람이 지킵니다)</div>
-
-<h3>8-3. Secret scanning과 Push protection</h3>
-<p><strong>Settings → Advanced Security</strong>에서 확인만 합니다. public 저장소에서는 두 기능이 <strong>기본으로 켜져</strong> 있습니다. GitHub이 여러 서비스의 토큰 형식을 알고 있어서, 그런 값이 든 push를 거부하고(Push protection), 이미 올라간 것은 알려 줍니다(Secret scanning). 0절 그림의 ②입니다.</p>
-<div class="plan">public 무료(자동으로 켜짐) / private은 GitHub Secret Protection(Team·Enterprise) 필요. 없으면 생략 가능(lefthook과 CI의 gitleaks가 남습니다)</div>
-
-<!-- ============================================================ -->
-<h2>9. 머지</h2>
-<p>PR 화면으로 돌아가면, Ruleset에 넣은 4개에 <strong>Required</strong>가 붙어 있습니다.</p>
-<figure><img src="../assets/img/github/pr-checks-passed.png" alt="필수 체크 통과"><figcaption>필수 체크 4개가 모두 ✓이고, 버튼은 "Squash and merge" 하나만 있습니다. 하나라도 ✗이면 버튼이 잠깁니다. Code scanning 체크는 필수가 아닙니다</figcaption></figure>
-<p><strong>Squash and merge → Confirm</strong>을 누릅니다. PC에서도 main을 최신으로 맞춥니다.</p>
-<p class="where">실행 위치: 저장소 루트</p>
-<pre><code>git switch main
-git pull
-git log --oneline -1</code></pre>
-<p class="ok"><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)</code>처럼 PR 제목에 번호가 붙은 커밋 <strong>1개</strong>가 main에 생깁니다. PR 안에서 커밋을 여러 번 했어도 하나로 합쳐집니다. main에 머지되면 CI가 main 기준으로 한 번 더 돌고, Security 탭의 목록은 이 결과로 만들어집니다.</p>
-
-<div class="state"><div class="h">📁 05장 완료 시점 (이 장에서 생긴·바뀐 파일)</div><pre>3tier-strapi-nextjs/
-├── <mark>.github/workflows/ci.yml</mark>   CI
-├── <mark>.dockerignore</mark>
-├── <mark>lefthook.yml</mark>               커밋 전 검사
-├── package.json               (lefthook 추가)
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml        (allowBuilds, overrides)
-└── apps/
-    ├── cms/
-    │   └── <mark>Dockerfile</mark>
-    └── web/
-        ├── <mark>Dockerfile</mark>
-        └── next.config.ts     (standalone)</pre></div>
-<p>앞으로의 작업은 모두 같은 흐름입니다: <strong>브랜치 → 커밋(lefthook) → push → PR(CI) → squash 머지</strong>.</p>
-
-<!-- ============================================================ -->
-<h2>10. 회사 저장소·private으로 옮길 때</h2>
-<p>플랜 조건은 바뀔 수 있습니다(2026-09 기준). 옮기기 전에 GitHub 공식 문서에서 확인하세요.</p>
-<table>
-<tr><th>기능</th><th>public</th><th>private</th><th>없을 때</th></tr>
-<tr><td>GitHub Actions(CI)</td><td>무료·무제한</td><td>플랜별 월 무료 시간 안에서</td><td>—</td></tr>
-<tr><td>Ruleset(필수 체크)</td><td>무료</td><td>Pro·Team 이상</td><td>사람이 CI ✓ 확인 후 머지</td></tr>
-<tr><td>Code scanning(SARIF 업로드)</td><td>무료</td><td>GitHub Code Security</td><td><code>ci.yml</code>에서 두 단계 삭제</td></tr>
-<tr><td>Secret scanning·Push protection</td><td>기본으로 켜짐</td><td>GitHub Secret Protection</td><td>lefthook·CI의 gitleaks로 대체</td></tr>
-</table>
-<p>저장소를 히스토리째 옮겨도 <strong>설정(머지 방식, Ruleset)은 따라가지 않습니다.</strong> 이 장의 8절을 새 저장소에서 다시 합니다. 워크플로 파일에는 저장소 이름이 적혀 있지 않으므로 그대로 동작합니다.</p>
-
-<h2>더 해보기</h2>
+<h2>4. 이미지 빌드와 취약점 검사</h2>
+<p>06장에서는 web과 cms를 <strong>Docker 이미지</strong>(앱과 실행에 필요한 것을 묶은 상자)로 AWS에서 실행합니다. CI는 PR마다 그 이미지를 똑같이 빌드해 보고, 안에 든 부품에 알려진 취약점이 없는지 <strong>Trivy</strong>로 검사합니다.</p>
+<p>Dockerfile에서 중요한 점은 네 가지입니다. 전체: <code>apps/web/Dockerfile</code>, <code>apps/cms/Dockerfile</code></p>
 <ul>
-  <li><strong>CodeQL</strong>(Settings → Advanced Security → Code scanning → Default setup): GitHub이 소스 코드를 읽어 보안 버그를 찾습니다. 결과는 7-2의 Code scanning에 함께 쌓이고, 이번에는 PR의 해당 줄에 경고가 표시됩니다.</li>
-  <li>SHA로 고정한 액션 올리기: 각 액션의 릴리스 페이지에서 새 버전의 커밋 SHA를 확인하고, SHA와 주석을 함께 바꾸는 PR을 만듭니다.</li>
+  <li><strong>2단계로 만든다</strong>: 1단계에서 설치·빌드하고, 2단계에는 실행에 필요한 결과물만 옮깁니다. 빌드 도구와 소스는 운영 이미지에 들어가지 않습니다.</li>
+  <li><strong>실행에 필요 없는 것은 넣지 않는다</strong>: npm, 관리자 화면 빌드 도구(vite) 등. 없는 것은 공격에 쓰일 수도, 취약점으로 잡힐 수도 없습니다.</li>
+  <li><strong>root가 아닌 사용자로 실행</strong>: 컨테이너가 뚫려도 피해가 작습니다.</li>
+  <li><strong>시크릿은 이미지에 넣지 않는다</strong>: 실행할 때 환경변수로 넣습니다(06장). <code>.dockerignore</code>로 <code>.env</code>가 들어가는 것도 막습니다.</li>
 </ul>
+
+<h3>결과 보기</h3>
+<p>PR의 검사 이름을 누르면 실행 화면의 <strong>Summary</strong>에 Trivy 결과 표가 나옵니다.</p>
+<figure><img src="../assets/img/github/ci-run-summary.png" alt="CI 실행 Summary"><figcaption>4개 모두 ✓, Trivy 결과는 "없음"</figcaption></figure>
+
+<h3>취약점이 잡혔을 때</h3>
+<p>이미지에는 직접 고르지 않은 패키지가 수천 개 들어 있고, 새 취약점은 매일 공개됩니다. 같은 코드라도 날짜에 따라 결과가 달라집니다. 이 자료를 만들 때도 처음에는 web 4건, cms 32건이 잡혔습니다. 대응은 이 순서로 판단합니다.</p>
+<table>
+<tr><th>순서</th><th>이 자료에서 한 일</th></tr>
+<tr><td>① 고친 버전이 있으면 <strong>올린다</strong></td><td>Strapi가 고정해 둔 패키지 2개를 수정판으로 지정(<code>pnpm-workspace.yaml</code>의 <code>overrides</code>)</td></tr>
+<tr><td>② 실행에 쓰지 않으면 <strong>뺀다</strong></td><td>npm과 빌드 도구를 운영 이미지에서 제외</td></tr>
+<tr><td>③ 둘 다 안 되면 이유와 기한을 적고 <strong>예외</strong>로 둔다</td><td>(이번에는 필요 없었음)</td></tr>
+</table>
+<details>
+<summary>Security 탭의 Code scanning은 무엇인가요?</summary>
+<p>CI는 Trivy 결과를 <strong>SARIF</strong>(검사 결과의 표준 형식)로 GitHub에 올립니다. <strong>Code scanning</strong>은 검사기가 아니라, 이렇게 올라온 결과를 경고 목록으로 보관하고 "언제 생겼고 언제 고쳐졌는지"를 추적하는 GitHub의 기능입니다. 다음 검사에서 사라진 경고는 자동으로 "fixed"로 닫힙니다.</p>
+<p>업로드하면 PR에 <code>Code scanning results / Trivy</code> 체크가 자동으로 붙습니다. 다시 검사하는 것이 아니라, "이 PR이 새 경고를 만들었나"를 main과 비교하는 것입니다. Security 탭의 기본 목록은 main 브랜치 기준입니다.</p>
+</details>
+
+<!-- ============================================================ -->
+<h2>5. 저장소 설정</h2>
+<p>CI만으로는 ✗여도 머지 버튼을 누를 수 있습니다. 저장소 설정 두 가지로 "통과해야만 합칠 수 있게" 만듭니다. 저장소를 만든 뒤, CI가 한 번 돈 다음에 설정합니다.</p>
+
+<h3>머지 방식: squash만</h3>
+<p><strong>Settings → General → Pull Requests</strong></p>
+<figure><img src="../assets/img/github/merge-settings.png" alt="머지 방식 설정"><figcaption>squash만 허용하고, 기본 메시지는 "Pull request title and description", 머지 후 브랜치 자동 삭제</figcaption></figure>
+<p><strong>squash</strong>는 PR 안의 커밋 여러 개("수정", "오타 수정" 등)를 main에 <strong>커밋 1개</strong>로 합쳐 넣는 방식입니다. PR 제목이 그대로 main의 커밋 메시지가 되어, main의 기록이 "변경 단위"로 깔끔하게 남습니다.</p>
+
+<h3>Ruleset: main 보호</h3>
+<p><strong>Settings → Rules → Rulesets → New branch ruleset</strong>에서 main(Default branch)을 대상으로 만듭니다.</p>
+<table>
+<tr><th>규칙</th><th>효과</th></tr>
+<tr><td>Require a pull request before merging</td><td>main에 직접 push 금지. 반드시 PR을 거칩니다(혼자 쓰는 저장소면 승인 인원 0)</td></tr>
+<tr><td><strong>Require status checks to pass</strong></td><td><strong>지정한 CI 검사가 ✓가 아니면 머지 불가.</strong> 3절의 4개를 추가합니다</td></tr>
+<tr><td>Block force pushes / Restrict deletions</td><td>main의 히스토리 덮어쓰기와 삭제 금지</td></tr>
+</table>
+<figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset 규칙 설정"><figcaption>필수 검사는 CI가 한 번 돈 뒤 검색창에 이름을 입력하면 후보로 나옵니다. 출처가 GitHub Actions인 것을 고릅니다</figcaption></figure>
+<div class="plan">public 저장소는 무료 / private 저장소는 GitHub Pro·Team 이상 (2026-09 기준)</div>
+<p>Secret scanning과 Push protection(1절 그림의 ②)은 public 저장소에서 기본으로 켜져 있습니다. <strong>Settings → Advanced Security</strong>에서 확인할 수 있습니다.</p>
+<div class="plan">private 저장소는 GitHub Secret Protection 필요. CI의 결과 업로드(Code scanning)는 GitHub Code Security 필요 — 없으면 <code>ci.yml</code>의 업로드 단계만 빼면 되고, 머지를 막는 기능은 그대로입니다</div>
+
+<!-- ============================================================ -->
+<h2>6. 결과: PR 화면</h2>
+<figure><img src="../assets/img/github/pr-checks-passed.png" alt="필수 체크 통과"><figcaption>Ruleset에 지정한 4개에 "Required"가 붙고, 모두 ✓일 때만 "Squash and merge"를 누를 수 있습니다</figcaption></figure>
+<p>머지하면 main에 커밋 1개가 생깁니다. 이 장의 커밋은 PR 제목 그대로입니다.</p>
+<pre><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)</code></pre>
+<p>앞으로의 변경은 모두 같은 흐름입니다: <strong>브랜치 → 커밋(lefthook) → push → PR(CI) → squash 머지</strong>.</p>
 
 <nav class="pager"><a href="04-nextjs-page.html">← 04 Next.js 화면</a><span>06 배포(CD) →</span></nav>
 </main>
