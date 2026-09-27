@@ -21,7 +21,8 @@ RUN pnpm -F cms build
 RUN pnpm --filter cms deploy --prod /out && cp -R apps/cms/dist /out/dist
 # 관리자 화면 빌드 도구 vite 와, vite 전용으로 딸려 온 옛 esbuild(0.21.5)는 위의 build 에서만 쓴다.
 # Strapi 가 dependencies 로 선언해서 /out 에 딸려 오므로, 운영 이미지로 옮기기 전에 뺀다 (취약점·공격 대상 축소).
-# 주의: esbuild 는 두 벌 있다. 새 버전(0.28.x)은 strapi 명령이 시작할 때 불러오므로(없으면 기동 실패) 남긴다.
+# 주의: esbuild 는 두 벌 있다. 새 버전(0.28.x)은 start 에서 쓰이지는 않지만, strapi 명령 프로그램이 켜질 때
+# build 명령의 코드까지 한꺼번에 불러오면서 함께 불러오므로 없으면 기동에 실패한다 → 남긴다.
 RUN rm -rf /out/node_modules/.pnpm/vite@* /out/node_modules/.pnpm/esbuild@0.21.5 /out/node_modules/.pnpm/@esbuild+*@0.21.5
 
 # ---- 2단계: 실행 ----

@@ -75,6 +75,15 @@
 - Dockerfile: `node:24-alpine`, 멀티 스테이지, 비root(`node`), 빌드 컨텍스트 = 저장소 루트, pnpm 버전은 packageManager 에서 읽어 `npm i -g`.
   web = Next `output: "standalone"`(Next 공식 Docker 예시 기반). cms = `pnpm deploy --prod` + dist, `public/uploads` 생성(없으면 Strapi 기동 실패).
 - 머지 방식은 squash 만 — PR 1개 = main 커밋 1개(장별 커밋 원칙, PR 제목이 Conventional Commits 메시지). 승인 인원 0(연수자 1인 저장소).
+- Trivy 가 첫 PR 에서 HIGH 를 검출(2026-09-27). 대응 순서 "고칠 수 있으면 올린다 → 실행에 안 쓰면 뺀다 → 둘 다 안 되면 근거·만료일과 예외" 중 앞의 둘만으로 해결(담당자 결정):
+  - 실행 이미지에서 npm·corepack 삭제(베이스 이미지 동봉, 실행에 불필요).
+  - Strapi 가 정확히 고정한 sharp 0.35.3 → 0.35.4, nodemailer 9.0.1 → 9.1.0 을 `pnpm-workspace.yaml` overrides 로(조건 없는 지정. webpack 플러그인이 sharp 를 `*` peer 로 요구해 `sharp@<0.35.4` 조건은 안 먹음). Strapi 업데이트 시 overrides 삭제 후 재확인.
+  - cms: vite 와 vite 전용 esbuild 0.21.5 를 `/out` 에서 빼고 복사(빌드 1단계에서만 사용. 레이어에 남지 않도록 COPY 전에 삭제). esbuild 0.28.x 는 유지 — `strapi` CLI 가 켜질 때 모든 명령을 등록하며 build 코드(`cli/commands/build.js` → `node/build.js` → `node/core/files.js` → esbuild-register → esbuild)까지 require 하므로, start 가 쓰지 않아도 없으면 기동 실패(실험). start 의 설정 읽기는 `dist/config/*.js` 를 일반 require 로 함(@strapi/core `load-config-file.js`, esbuild 무관).
+  / 버린 대안: `.trivyignore.yaml` 예외(코드가 이미지에 남음), 기준 완화(CRITICAL 도 있어 무의미).
+- 로컬 Strapi `HOST=0.0.0.0`(생성기 기본값) 유지 — 담당자 결정. vite 개발 서버 취약점(Windows)은 같은 네트워크에서 접근 가능할 때만 성립, 위험 낮음.
+- Trivy 결과는 ① SARIF → Security 탭(기본 목록은 main 기준이라 머지 후 표시), ② 관문(exit-code 1), ③ 표를 Job Summary 에(`TRIVY_TABLE_MODE=detailed`, 없으면 "없음") — PR 코멘트는 `pull-requests: write` 와 외부 액션이 필요해 안 씀.
+  "GitHub Advanced Security / Trivy" 체크와 봇 코멘트는 SARIF 업로드 시 GitHub 이 자동 생성(우리가 만든 job 아님).
+- Secret scanning·Push protection 은 public 저장소에서 이미 켜져 있었음(설정 불필요). 담당자 개입은 머지 방식·Ruleset 만.
 
 ## 문서
 
