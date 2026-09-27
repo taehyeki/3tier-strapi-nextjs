@@ -84,6 +84,14 @@
 - Trivy 결과는 ① SARIF → Security 탭(기본 목록은 main 기준이라 머지 후 표시), ② 관문(exit-code 1), ③ 표를 Job Summary 에(`TRIVY_TABLE_MODE=detailed`, 없으면 "없음") — PR 코멘트는 `pull-requests: write` 와 외부 액션이 필요해 안 씀.
   "GitHub Advanced Security / Trivy" 체크와 봇 코멘트는 SARIF 업로드 시 GitHub 이 자동 생성(우리가 만든 job 아님).
 - Secret scanning·Push protection 은 public 저장소에서 이미 켜져 있었음(설정 불필요). 담당자 개입은 머지 방식·Ruleset 만.
+- SARIF 업로드 **유지**(2026-09-27 담당자 확인). 업로드 한 단계가 GitHub 쪽에서 일으키는 일(경고 생성, 다음 분석에 없으면 fixed 로 자동 종료,
+  PR 체크 "Code scanning results / Trivy" 자동 생성, 최초 1회 봇 코멘트, Security 탭 기본 필터는 main 의 열린 경고)을 문서에 표로 싣는다.
+  CodeQL(소스 코드 정적 분석)은 켜지 않음(`default-setup: not-configured`). 이미지 경고는 위치가 이미지 안 경로라 PR 줄 주석은 안 뜸.
+- 설명 원칙: 설정 하나가 **부수적으로 일으키는 동작까지 미리** 설명한다(담당자가 "설정한 것만 움직이길" 원함. 예상 밖 동작을 나중에 발견하게 하지 않는다).
+- GitHub 설정(머지 방식·Ruleset)은 담당자 위임으로 Claude 가 Playwright 로 조작·캡처(2026-09-27).
+  → 실제로는 rebase 해제 클릭이 Claude Code auto mode 분류기에 거부됨. merge commit 해제·브랜치 자동 삭제만 Claude 가 하고, 나머지(rebase 해제·squash 메시지·Ruleset)는 담당자가 조작, Claude 는 읽기 전용 캡처·API 확인.
+- 러너 `ubuntu-24.04` 고정 — ubuntu-latest 가 2026-10-19 부터 Ubuntu 26 으로 바뀜(연수 중 변동 방지, SHA 고정과 같은 원칙) / ubuntu-latest.
+- docker/build-push-action 의 기본 동작(Summary 의 Docker Build summary, Artifacts 의 .dockerbuild 빌드 기록 업로드)은 **유지**, 문서에 "자동으로 하는 일"로 명시(담당자 결정).
 
 ## 문서
 
