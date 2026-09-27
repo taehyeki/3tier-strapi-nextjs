@@ -659,7 +659,7 @@ export interface components {
       updatedAt?: string;
       /**
        * @description A datetime field
-       * @default 2026-09-26T11:35:49.446Z
+       * @default 2026-09-27T13:11:45.147Z
        */
       publishedAt: string;
       related: unknown;
@@ -686,13 +686,18 @@ export interface components {
       name: string;
       /** @description An integer field */
       price: number;
+      /**
+       * @description A boolean field
+       * @default false
+       */
+      soldOut: boolean | null;
       /** @description A datetime field */
       createdAt?: string;
       /** @description A datetime field */
       updatedAt?: string;
       /**
        * @description A datetime field
-       * @default 2026-09-26T11:35:49.449Z
+       * @default 2026-09-27T13:11:45.149Z
        */
       publishedAt: string;
       /** @description A media field */
@@ -721,7 +726,7 @@ export interface components {
       updatedAt?: string;
       /**
        * @description A datetime field
-       * @default 2026-09-26T11:35:49.451Z
+       * @default 2026-09-27T13:11:45.149Z
        */
       publishedAt: string;
       /** @description A component field */
@@ -746,7 +751,7 @@ export interface components {
       updatedAt?: string;
       /**
        * @description A datetime field
-       * @default 2026-09-26T11:35:49.447Z
+       * @default 2026-09-27T13:11:45.148Z
        */
       publishedAt: string;
       /** @description A media field */
@@ -773,6 +778,7 @@ export interface operations {
         fields?: (
           | "name"
           | "price"
+          | "soldOut"
           | "createdAt"
           | "updatedAt"
           | "publishedAt"
@@ -787,8 +793,22 @@ export interface operations {
         "pagination[start]"?: number;
         "pagination[limit]"?: number;
         sort?:
-          | ("name" | "price" | "createdAt" | "updatedAt" | "publishedAt")
-          | ("name" | "price" | "createdAt" | "updatedAt" | "publishedAt")[]
+          | (
+              | "name"
+              | "price"
+              | "soldOut"
+              | "createdAt"
+              | "updatedAt"
+              | "publishedAt"
+            )
+          | (
+              | "name"
+              | "price"
+              | "soldOut"
+              | "createdAt"
+              | "updatedAt"
+              | "publishedAt"
+            )[]
           | {
               [key: string]: "asc" | "desc";
             }
@@ -832,13 +852,18 @@ export interface operations {
               name: string;
               /** @description An integer field */
               price: number;
+              /**
+               * @description A boolean field
+               * @default false
+               */
+              soldOut: boolean | null;
               /** @description A datetime field */
               createdAt?: string;
               /** @description A datetime field */
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.443Z
+               * @default 2026-09-27T13:11:45.144Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -892,6 +917,7 @@ export interface operations {
         fields?: (
           | "name"
           | "price"
+          | "soldOut"
           | "createdAt"
           | "updatedAt"
           | "publishedAt"
@@ -922,8 +948,13 @@ export interface operations {
             /** @description A float field */
             price: number;
             /**
+             * @description A boolean field
+             * @default false
+             */
+            soldOut: ("0" | "1" | "t" | "true" | "f" | "false") | null;
+            /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.861Z
+             * @default 2026-09-27T13:11:45.638Z
              */
             publishedAt: string;
             /** @description A media field */
@@ -953,13 +984,18 @@ export interface operations {
               name: string;
               /** @description An integer field */
               price: number;
+              /**
+               * @description A boolean field
+               * @default false
+               */
+              soldOut: boolean | null;
               /** @description A datetime field */
               createdAt?: string;
               /** @description A datetime field */
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.455Z
+               * @default 2026-09-27T13:11:45.152Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1013,6 +1049,7 @@ export interface operations {
         fields?: (
           | "name"
           | "price"
+          | "soldOut"
           | "createdAt"
           | "updatedAt"
           | "publishedAt"
@@ -1022,8 +1059,22 @@ export interface operations {
           [key: string]: unknown;
         };
         sort?:
-          | ("name" | "price" | "createdAt" | "updatedAt" | "publishedAt")
-          | ("name" | "price" | "createdAt" | "updatedAt" | "publishedAt")[]
+          | (
+              | "name"
+              | "price"
+              | "soldOut"
+              | "createdAt"
+              | "updatedAt"
+              | "publishedAt"
+            )
+          | (
+              | "name"
+              | "price"
+              | "soldOut"
+              | "createdAt"
+              | "updatedAt"
+              | "publishedAt"
+            )[]
           | {
               [key: string]: "asc" | "desc";
             }
@@ -1068,13 +1119,18 @@ export interface operations {
               name: string;
               /** @description An integer field */
               price: number;
+              /**
+               * @description A boolean field
+               * @default false
+               */
+              soldOut: boolean | null;
               /** @description A datetime field */
               createdAt?: string;
               /** @description A datetime field */
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.453Z
+               * @default 2026-09-27T13:11:45.151Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1128,6 +1184,7 @@ export interface operations {
         fields?: (
           | "name"
           | "price"
+          | "soldOut"
           | "createdAt"
           | "updatedAt"
           | "publishedAt"
@@ -1160,8 +1217,13 @@ export interface operations {
             /** @description A float field */
             price?: number;
             /**
+             * @description A boolean field
+             * @default false
+             */
+            soldOut?: ("0" | "1" | "t" | "true" | "f" | "false") | null;
+            /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.886Z
+             * @default 2026-09-27T13:11:45.660Z
              */
             publishedAt?: string;
             /** @description A media field */
@@ -1191,13 +1253,18 @@ export interface operations {
               name: string;
               /** @description An integer field */
               price: number;
+              /**
+               * @description A boolean field
+               * @default false
+               */
+              soldOut: boolean | null;
               /** @description A datetime field */
               createdAt?: string;
               /** @description A datetime field */
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.456Z
+               * @default 2026-09-27T13:11:45.154Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1251,6 +1318,7 @@ export interface operations {
         fields?: (
           | "name"
           | "price"
+          | "soldOut"
           | "createdAt"
           | "updatedAt"
           | "publishedAt"
@@ -1297,13 +1365,18 @@ export interface operations {
               name: string;
               /** @description An integer field */
               price: number;
+              /**
+               * @description A boolean field
+               * @default false
+               */
+              soldOut: boolean | null;
               /** @description A datetime field */
               createdAt?: string;
               /** @description A datetime field */
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.456Z
+               * @default 2026-09-27T13:11:45.155Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1431,7 +1504,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.459Z
+               * @default 2026-09-27T13:11:45.157Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1523,7 +1596,7 @@ export interface operations {
             description?: string;
             /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.910Z
+             * @default 2026-09-27T13:11:45.689Z
              */
             publishedAt: string;
             /** @description A media field */
@@ -1563,7 +1636,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.464Z
+               * @default 2026-09-27T13:11:45.167Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1691,7 +1764,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.463Z
+               * @default 2026-09-27T13:11:45.165Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1785,7 +1858,7 @@ export interface operations {
             description?: string;
             /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.924Z
+             * @default 2026-09-27T13:11:45.711Z
              */
             publishedAt?: string;
             /** @description A media field */
@@ -1825,7 +1898,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.465Z
+               * @default 2026-09-27T13:11:45.168Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -1938,7 +2011,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.466Z
+               * @default 2026-09-27T13:11:45.169Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -2058,7 +2131,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.468Z
+               * @default 2026-09-27T13:11:45.172Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -2153,7 +2226,7 @@ export interface operations {
             ticketRule?: string;
             /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.945Z
+             * @default 2026-09-27T13:11:45.750Z
              */
             publishedAt?: string;
             /** @description A media field */
@@ -2195,7 +2268,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.469Z
+               * @default 2026-09-27T13:11:45.173Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -2306,7 +2379,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.469Z
+               * @default 2026-09-27T13:11:45.174Z
                */
               publishedAt: string;
               /** @description A media field */
@@ -2429,7 +2502,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.471Z
+               * @default 2026-09-27T13:11:45.176Z
                */
               publishedAt: string;
               /** @description A component field */
@@ -2514,7 +2587,7 @@ export interface operations {
             description?: string;
             /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.964Z
+             * @default 2026-09-27T13:11:45.784Z
              */
             publishedAt: string;
             /** @description A component field */
@@ -2550,7 +2623,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.472Z
+               * @default 2026-09-27T13:11:45.177Z
                */
               publishedAt: string;
               /** @description A component field */
@@ -2671,7 +2744,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.471Z
+               * @default 2026-09-27T13:11:45.176Z
                */
               publishedAt: string;
               /** @description A component field */
@@ -2758,7 +2831,7 @@ export interface operations {
             description?: string;
             /**
              * @description A datetime field
-             * @default 2026-09-26T11:35:49.979Z
+             * @default 2026-09-27T13:11:45.805Z
              */
             publishedAt?: string;
             /** @description A component field */
@@ -2794,7 +2867,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.472Z
+               * @default 2026-09-27T13:11:45.178Z
                */
               publishedAt: string;
               /** @description A component field */
@@ -2900,7 +2973,7 @@ export interface operations {
               updatedAt?: string;
               /**
                * @description A datetime field
-               * @default 2026-09-26T11:35:49.473Z
+               * @default 2026-09-27T13:11:45.179Z
                */
               publishedAt: string;
               /** @description A component field */

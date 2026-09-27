@@ -137,12 +137,28 @@ export default async function Page() {
           {extras.map((extra) => (
             <li
               key={extra.documentId}
-              className="overflow-hidden rounded-xl border border-stone-200 bg-white"
+              className="relative overflow-hidden rounded-xl border border-stone-200 bg-white"
             >
-              <Photo media={extra.photo} alt={extra.name} />
+              {/* 관리자 화면에서 soldOut(품절)을 켜면 사진을 흐리게 하고 "売り切れ"를 표시한다 */}
+              <div
+                className={extra.soldOut ? "opacity-40 grayscale" : undefined}
+              >
+                <Photo media={extra.photo} alt={extra.name} />
+              </div>
+              {extra.soldOut && (
+                <span className="absolute top-2 left-2 rounded-full bg-red-600 px-3 py-0.5 text-xs font-bold text-white">
+                  売り切れ
+                </span>
+              )}
               <p className="flex justify-between p-3 text-sm">
                 <span className="font-bold">{extra.name}</span>
-                <span>+{yen(extra.price)}</span>
+                <span
+                  className={
+                    extra.soldOut ? "text-stone-400 line-through" : undefined
+                  }
+                >
+                  +{yen(extra.price)}
+                </span>
               </p>
             </li>
           ))}
