@@ -1,0 +1,41 @@
+<svg class="dg" viewBox="0 0 980 580" role="img" aria-label="AWS 구성도">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="fill:var(--fg)"/></marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+  </defs>
+  <!-- 사용자 -->
+  <rect class="box" x="10" y="190" width="118" height="70" rx="10"/><text class="t" x="69" y="220" text-anchor="middle">손님</text><text class="s" x="69" y="240" text-anchor="middle">브라우저</text>
+  <rect class="box" x="10" y="330" width="118" height="70" rx="10"/><text class="t" x="69" y="360" text-anchor="middle">가게 직원</text><text class="s" x="69" y="380" text-anchor="middle">관리자 화면</text>
+  <!-- AWS Cloud -->
+  <rect class="grp" x="150" y="14" width="820" height="520" rx="4"/><image href="../assets/aws/AWSCloud.svg" x="150" y="14" width="32" height="32"/><text class="t" x="190" y="35">AWS 클라우드 (도쿄 리전)</text>
+  <!-- CloudFront -->
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="198" width="48" height="48"/><text x="214" y="262" text-anchor="middle" class="s">CloudFront</text><text x="214" y="277" text-anchor="middle" class="s">(사이트용)</text>
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="338" width="48" height="48"/><text x="214" y="402" text-anchor="middle" class="s">CloudFront</text><text x="214" y="417" text-anchor="middle" class="s">(관리자용)</text>
+  <!-- VPC -->
+  <rect class="grp-vpc" x="300" y="56" width="530" height="440" rx="4"/><image href="../assets/aws/VirtualprivatecloudVPC.svg" x="300" y="56" width="32" height="32"/><text class="t" x="340" y="77">VPC (자기만의 네트워크)</text>
+  <rect class="grp-pri" x="320" y="100" width="320" height="380" rx="4"/><image href="../assets/aws/Privatesubnet.svg" x="320" y="100" width="28" height="28"/><text class="t" x="354" y="119">Private 서브넷</text><text class="s" x="354" y="135">인터넷에서 직접 들어올 수 없음</text>
+  <image href="../assets/aws/ElasticLoadBalancing.svg" x="345" y="268" width="48" height="48"/><text x="369" y="332" text-anchor="middle" class="s">ALB (내부)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="168" width="48" height="48"/><text x="549" y="232" text-anchor="middle" class="t">Next.js</text><text x="549" y="247" text-anchor="middle" class="s">Fargate (화면)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="360" width="48" height="48"/><text x="549" y="424" text-anchor="middle" class="t">Strapi</text><text x="549" y="439" text-anchor="middle" class="s">Fargate (CMS·API)</text>
+  <rect class="grp-iso" x="660" y="300" width="155" height="180" rx="4"/><text class="t" x="672" y="320">Isolated 서브넷</text><text class="s" x="672" y="336">앱에서만 접근</text>
+  <image href="../assets/aws/AmazonAurora.svg" x="713" y="368" width="48" height="48"/><text x="737" y="432" text-anchor="middle" class="t">Aurora</text><text x="737" y="447" text-anchor="middle" class="s">PostgreSQL</text>
+  <!-- VPC 밖 -->
+  <image href="../assets/aws/AmazonSimpleStorageService.svg" x="872" y="120" width="48" height="48"/><text x="896" y="184" text-anchor="middle" class="s">S3 (사진)</text>
+  <image href="../assets/aws/AWSSecretsManager.svg" x="872" y="250" width="48" height="48"/><text x="896" y="314" text-anchor="middle" class="s">Secrets</text><text x="896" y="328" text-anchor="middle" class="s">Manager</text>
+  <image href="../assets/aws/AmazonElasticContainerRegistry.svg" x="872" y="390" width="48" height="48"/><text x="896" y="454" text-anchor="middle" class="s">ECR</text><text x="896" y="468" text-anchor="middle" class="s">(앱 이미지)</text>
+  <!-- 손님 흐름 -->
+  <path class="ar" d="M128 225 H186"/><circle class="num" cx="157" cy="210" r="10"/><text class="num-t" x="157" y="214" text-anchor="middle">1</text>
+  <path class="ar" d="M240 222 C290 222 300 290 341 292"/><circle class="num" cx="290" cy="240" r="10"/><text class="num-t" x="290" y="244" text-anchor="middle">2</text>
+  <path class="ar" d="M395 286 C450 286 470 192 521 192"/><circle class="num" cx="455" cy="222" r="10"/><text class="num-t" x="455" y="226" text-anchor="middle">3</text>
+  <path class="ar" d="M549 252 V356"/><circle class="num" cx="565" cy="300" r="10"/><text class="num-t" x="565" y="304" text-anchor="middle">4</text><text class="s" x="580" y="304">토큰으로 조회</text>
+  <path class="ar" d="M575 384 H709"/><circle class="num" cx="640" cy="370" r="10"/><text class="num-t" x="640" y="374" text-anchor="middle">5</text>
+  <path class="ar" d="M575 372 C700 340 780 200 868 150"/><circle class="num" cx="760" cy="238" r="10"/><text class="num-t" x="760" y="242" text-anchor="middle">6</text>
+  <!-- 관리자 흐름 -->
+  <path class="ar2" d="M128 365 H186"/>
+  <path class="ar2" d="M240 362 C290 362 300 300 341 300"/>
+  <path class="ar2" d="M395 300 C450 310 470 384 521 384"/>
+  <!-- 층 -->
+  <text class="tier" x="270" y="560" text-anchor="middle">1층 웹 (입구)</text>
+  <text class="tier" x="549" y="560" text-anchor="middle">2층 앱 (처리)</text>
+  <text class="tier" x="810" y="560" text-anchor="middle">3층 데이터 (저장)</text>
+</svg>

@@ -5,72 +5,62 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>07 변경을 운영까지</title>
 <link rel="stylesheet" href="../assets/guide.css">
-<style>
-  .ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-  .ba figure { margin: 0; }
-</style>
 </head>
 <body>
 <main>
 <header class="chapter">
   <div class="no">CHAPTER 07</div>
   <h1>변경을 운영까지: 작은 기능 하나를 끝까지 보내기</h1>
-  <p class="lead">지금까지 만든 흐름을 처음부터 끝까지 한 번 돌려 봅니다. 로컬에서 작은 기능을 추가하고, PR을 만들어 머지하면 나머지는 자동으로 운영에 반영됩니다. 마지막으로 <strong>"무엇이 코드로 배포되고, 무엇은 운영에서 손으로 하는가"</strong>를 다시 확인합니다.</p>
+  <p class="lead">지금까지 만든 흐름을 처음부터 끝까지 한 번 돌려 봅니다. 로컬에서 작은 기능을 추가하고 PR을 머지하면, 나머지는 자동으로 운영에 반영됩니다.</p>
+  <ol class="chmap" aria-label="장 지도"><li><a href="00-overview.html">00 전체 구조</a></li><li><a href="01-local-setup.html">01 로컬 환경</a></li><li><a href="02-strapi-schema.html">02 스키마</a></li><li><a href="03-data-and-api.html">03 데이터·API</a></li><li><a href="04-nextjs-page.html">04 화면</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD·배포</a></li><li class="on"><span>07 변경을 운영까지</span></li><li><a href="08-summary.html">08 정리</a></li></ol>
 </header>
 
-<p class="goal">추가 메뉴에 "売り切れ(품절)" 표시를 추가하고, 로컬 → PR → CI → 머지 → 자동 배포 → 운영 관리자 화면에서 켜기까지 마친다.</p>
+<p class="goal">추가 메뉴에 "売り切れ(품절)" 표시를 추가하고, 로컬 → PR → 머지 → 자동 배포 → 운영 관리자 화면에서 켜기까지 마친다.</p>
 
 <h2>1. 무엇을 바꾸나</h2>
-<p>직원이 관리자 화면에서 "품절"을 켜면, 사이트의 추가 메뉴가 흐려지고 "売り切れ"가 붙게 합니다. 필드 1개와 화면 몇 줄로 끝나는 작은 변경이지만, 스키마·타입·화면·배포·운영 데이터가 모두 한 번씩 등장합니다.</p>
+<p>직원이 관리자 화면에서 "품절"을 켜면, 사이트의 추가 메뉴가 흐려지고 "売り切れ"가 붙게 합니다.</p>
 <div class="ba">
 <figure><img src="../assets/img/change/before-prod.png" alt="변경 전 (운영)"><figcaption>변경 전 (운영)</figcaption></figure>
-<figure><img src="../assets/img/change/after-prod.png" alt="변경 후 (운영). 관리자 화면에서 チャーシュー 를 품절로 켠 상태"><figcaption>변경 후 (운영). 관리자 화면에서 チャーシュー 를 품절로 켠 상태</figcaption></figure>
+<figure><img src="../assets/img/change/after-prod.png" alt="변경 후 (운영). 운영 관리자 화면에서 チャーシュー 를 품절로 켠 상태"><figcaption>변경 후 (운영). 운영 관리자 화면에서 チャーシュー 를 품절로 켠 상태</figcaption></figure>
 </div>
+<p>작은 변경이지만 3층이 모두 등장합니다.</p>
 <table>
-<tr><th>바뀌는 것</th><th>누가 바꾸나</th><th>운영에 가는 방법</th></tr>
-<tr><td><code>apps/cms/src/api/extra/content-types/extra/schema.json</code> (스키마)</td><td>로컬 관리자 화면 → Strapi 가 파일로 씀</td><td rowspan="3">Git → PR → 머지 → <strong>자동 배포</strong></td></tr>
-<tr><td><code>apps/web/src/types/strapi.d.ts</code> (타입)</td><td><code>pnpm gen:types</code></td></tr>
-<tr><td><code>apps/web/src/app/page.tsx</code> (화면)</td><td>사람이 코드로</td></tr>
-<tr><td>"チャーシュー 는 품절" (데이터)</td><td>운영 관리자 화면</td><td><strong>배포되지 않음</strong>. 운영에서 직접</td></tr>
+<tr><th>바뀌는 것</th><th>층</th><th>누가 바꾸나</th><th>운영에 가는 방법</th></tr>
+<tr><td>스키마: Extra에 soldOut(켜기/끄기) 필드</td><td><span class="tier back">백엔드</span></td><td>로컬 관리자 화면 → Strapi가 파일로 저장</td><td rowspan="3">PR → 머지 → <strong>자동 배포</strong></td></tr>
+<tr><td>타입: 화면 코드가 soldOut을 안다</td><td><span class="tier front">프론트</span></td><td>자동 생성</td></tr>
+<tr><td>화면: 품절이면 흐리게 + "売り切れ"</td><td><span class="tier front">프론트</span></td><td>사람이 코드로</td></tr>
+<tr><td>데이터: "チャーシュー 는 품절"</td><td><span class="tier db">DB</span></td><td>운영 관리자 화면</td><td><strong>배포되지 않음</strong>. 운영에서 직접</td></tr>
 </table>
 
-<h2>2. 로컬: 스키마에 필드 추가</h2>
-<p class="where">실행 위치: 저장소 루트 (작업 브랜치에서)</p>
+<h2>2. 흐름</h2>
+<div class="flow">
+  <div><b>① 필드 추가</b>로컬 관리자 화면<small>02장</small></div><div class="arr">→</div>
+  <div><b>② 화면 수정</b>타입은 자동<small>04장</small></div><div class="arr">→</div>
+  <div><b>③ 로컬 확인</b>켜 보고 새로고침<small>03·04장</small></div><div class="arr">→</div>
+  <div><b>④ PR → 머지</b>CI 통과<small>05장</small></div><div class="arr">→</div>
+  <div class="hl"><b>⑤ 자동 배포</b>약 10분<small>06장</small></div><div class="arr">→</div>
+  <div><b>⑥ 운영에서 켜기</b>운영 관리자 화면<small>03장</small></div>
+</div>
+
+<h2>3. 로컬: 필드 추가 <span class="tier back">백엔드</span></h2>
+<p class="where">실행 위치: 저장소 루트</p>
 <pre><code>git switch -c feat/extra-sold-out
 pnpm dev:db
 pnpm dev:cms</code></pre>
-<p>02장과 같은 방법으로 <strong>Content-Type Builder → Extra → Add another field → Boolean</strong>을 고르고, 이름은 <code>soldOut</code>, <strong>ADVANCED SETTINGS</strong>의 Default value는 <code>false</code>로 합니다. Finish → Save.</p>
-<figure><img src="../assets/img/change/ctb-boolean-basic.png" alt="Boolean(켜기/끄기) 필드 추가. 이름은 코드에서 쓰는 식별자라 영문으로"><figcaption>Boolean(켜기/끄기) 필드 추가. 이름은 코드에서 쓰는 식별자라 영문으로</figcaption></figure>
-<p>Strapi가 설계도 파일에 필드를 추가합니다.</p>
+<p><strong>Content-Type Builder → Extra → Add another field → Boolean</strong>. 이름은 <code>soldOut</code>, ADVANCED SETTINGS의 Default value는 <code>false</code>. Finish → Save.</p>
+<figure><img src="../assets/img/change/ctb-boolean-basic.png" alt="켜기/끄기(Boolean) 필드 추가. 이름은 코드에서 쓰는 식별자라 영문으로"><figcaption>켜기/끄기(Boolean) 필드 추가. 이름은 코드에서 쓰는 식별자라 영문으로</figcaption></figure>
+<details class="opt">
+<summary>Strapi가 저장한 설계도 보기 <span class="skip">생략 가능</span></summary>
 <p class="file">apps/cms/src/api/extra/content-types/extra/schema.json</p>
-<pre><code>  "menus": {
-    "type": "relation",
-    "relation": "manyToMany",
-    "target": "api::menu.menu",
-    "mappedBy": "extras"
-  },
-  "soldOut": {
-    "type": "boolean",
-    "default": false
-  }
+<pre><code>"soldOut": {
+  "type": "boolean",
+  "default": false
 }</code></pre>
-<div class="note"><strong>로컬 Strapi(<code>pnpm dev:cms</code>)를 켠 채로 브랜치를 바꾸지 마세요.</strong> 개발 모드의 Strapi는 파일이 바뀌면 다시 시작하면서 DB를 그 스키마에 맞춥니다. 필드가 없는 브랜치로 바꾸면 그 열을 지우므로, 입력해 둔 값이 사라집니다(이 자료를 만들 때 실제로 겪었습니다). 브랜치를 바꿀 때는 먼저 Strapi를 멈춥니다.</div>
+</details>
+<div class="note"><strong>로컬 Strapi를 켠 채로 브랜치를 바꾸지 마세요.</strong> 개발 모드의 Strapi는 파일이 바뀌면 다시 시작하면서 DB를 그 스키마에 맞춥니다. 필드가 없는 브랜치로 바꾸면 그 열을 지워서 입력해 둔 값이 사라집니다(이 자료를 만들 때 실제로 겪음). 브랜치를 바꾸기 전에 Strapi를 멈춥니다.</div>
 
-<h2>3. 타입 다시 만들기</h2>
-<p>스키마를 바꿨으니 web이 쓰는 타입도 다시 만듭니다(04장).</p>
-<p class="where">실행 위치: 저장소 루트 (Strapi 실행 중)</p>
-<pre><code>pnpm gen:types</code></pre>
-<p class="file">apps/web/src/types/strapi.d.ts</p>
-<pre><code>/**
- * @description A boolean field
- * @default false
- */
-soldOut: boolean | null;</code></pre>
-<p><code>boolean | null</code>인 이유: 필드를 추가하기 전에 만든 데이터는 값이 비어 있습니다(<code>null</code>). 기본값 <code>false</code>는 새로 만드는 데이터에만 들어갑니다. 화면에서는 <code>null</code>을 "품절 아님"으로 다룹니다.</p>
-<p>이 명령을 잊으면 화면 코드의 <code>extra.soldOut</code>이 타입에 없어서 타입 검사가 실패합니다. 내 PC에서 놓쳐도 <strong>PR의 CI(check)</strong>가 막아 줍니다.</p>
-
-<h2>4. 화면: 받아 온 값으로 표시를 바꾼다</h2>
-<p>아래는 디자인 설정을 뺀 <strong>요약</strong>입니다. 실제 코드는 <code>apps/web/src/app/page.tsx</code>의 추가 메뉴 부분입니다.</p>
+<h2>4. 화면 수정 <span class="tier front">프론트</span></h2>
+<p>화면 코드가 새 필드를 알도록 타입을 다시 만듭니다. 바로 쓰려면 <code>pnpm gen:types</code>를 실행하고, 잊어도 <strong>커밋할 때 lefthook이 자동으로</strong> 만들어 함께 커밋합니다(05장). 그다음 추가 메뉴 부분을 고칩니다. 아래는 디자인을 뺀 <strong>요약</strong>이고, 실제 파일은 <code>apps/web/src/app/page.tsx</code>입니다.</p>
 <pre><code>{extras.map((extra) =&gt; (
   &lt;li&gt;
     &lt;div className={extra.soldOut ? "흐리게" : undefined}&gt;   // 품절이면 사진을 흐리게
@@ -80,12 +70,14 @@ soldOut: boolean | null;</code></pre>
     &lt;p&gt;{extra.name} +{yen(extra.price)}&lt;/p&gt;
   &lt;/li&gt;
 ))}</code></pre>
-<p>데이터를 가져오는 코드(<code>lib/menu.ts</code>)는 고치지 않습니다. 추가 메뉴는 이미 모든 글자·숫자 필드를 받아 오고 있어서, 새 필드도 그대로 들어옵니다.</p>
+<p>데이터를 가져오는 코드는 고치지 않습니다. 추가 메뉴는 이미 모든 글자·숫자 필드를 받아 오고 있어서 새 필드도 그대로 들어옵니다.</p>
+<details class="opt">
+<summary>생성된 타입이 <code>boolean | null</code>인 이유 <span class="skip">생략 가능</span></summary>
+<p>필드를 추가하기 전에 만든 데이터는 값이 비어 있습니다(<code>null</code>). 기본값 <code>false</code>는 새로 만드는 데이터에만 들어갑니다. 화면에서는 <code>null</code>을 "품절 아님"으로 다룹니다. 타입을 다시 만들지 않은 채 <code>extra.soldOut</code>을 쓰면 타입 검사가 실패하므로, 잊어도 PR의 CI가 막아 줍니다.</p>
+</details>
 
 <h2>5. 로컬에서 확인</h2>
-<p class="where">실행 위치: 저장소 루트 (다른 터미널)</p>
-<pre><code>pnpm dev:web</code></pre>
-<p>로컬 관리자 화면의 <strong>Content Manager → Extra → チャーシュー</strong>에서 soldOut을 TRUE로 바꾸고 Publish합니다. <code>http://localhost:3000</code>을 새로고침합니다.</p>
+<p>로컬 관리자 화면의 <strong>Content Manager → Extra → チャーシュー</strong>에서 soldOut을 TRUE로 바꾸고 Publish → <code>http://localhost:3000</code>을 새로고침합니다(<code>pnpm dev:web</code> 실행 중).</p>
 <div class="ba">
 <figure><img src="../assets/img/change/admin-soldout.png" alt="관리자 화면에 soldOut 스위치가 생겼다"><figcaption>관리자 화면에 soldOut 스위치가 생겼다</figcaption></figure>
 <figure><img src="../assets/img/change/after-local.png" alt="로컬 사이트. 새로고침만으로 반영된다"><figcaption>로컬 사이트. 새로고침만으로 반영된다</figcaption></figure>
@@ -93,45 +85,29 @@ soldOut: boolean | null;</code></pre>
 
 <h2>6. 커밋 → PR → 머지</h2>
 <p class="where">실행 위치: 저장소 루트</p>
-<pre><code>pnpm lint
-pnpm typecheck
-git add apps
+<pre><code>git add apps
 git commit -m "feat: 追加メニューに「売り切れ」表示を追加"
 git push -u origin feat/extra-sold-out</code></pre>
-<p>커밋할 때 lefthook이 Biome으로 파일 모양을 정리합니다(Strapi가 다시 쓴 JSON의 들여쓰기도 원래대로). GitHub에서 PR을 만들면 CI 4개(check, secrets, image ×2)가 돌고, 모두 통과하면 squash 머지합니다(05장).</p>
+<p>커밋할 때 lefthook이 타입 생성과 코드 모양 정리를 해 줍니다. GitHub에서 PR을 만들면 CI 4개가 돌고, 모두 통과하면 squash 머지합니다.</p>
 
-<h2>7. 자동 배포</h2>
-<p>머지하면 06장의 배포 워크플로가 스스로 시작합니다. 사람이 할 일은 없습니다.</p>
+<h2>7. 자동 배포 <span class="tier ops">CI/CD</span></h2>
+<p>머지하면 06장의 배포가 스스로 시작합니다. 사람이 할 일은 없습니다.</p>
 <table>
 <tr><th>단계</th><th>이번 변경에서 일어나는 일</th></tr>
-<tr><td>publish</td><td>web·cms 이미지를 새 커밋 SHA로 빌드 → Trivy 검사 → ECR</td></tr>
-<tr><td>deploy</td><td>Data 스택은 바뀐 것이 없어 그대로. App 스택은 두 서비스의 이미지 태그만 바뀜</td></tr>
-<tr><td>ECS</td><td>새 컨테이너가 뜬 뒤 옛 컨테이너를 내림(무중단). cms는 시작하면서 새 스키마를 보고 운영 DB에 <code>sold_out</code> 열을 추가</td></tr>
+<tr><td>publish</td><td>web·cms 이미지를 새 커밋 번호로 빌드 → 검사 → 보관소(약 5분)</td></tr>
+<tr><td>deploy</td><td>DB 등(Data)은 바뀐 것이 없어 그대로. 컨테이너만 새 이미지로 교체(약 5분)</td></tr>
+<tr><td>ECS</td><td>새 컨테이너가 뜬 뒤 옛 것을 내림(무중단). cms는 시작하면서 새 스키마를 보고 운영 DB에 soldOut 열을 추가</td></tr>
 </table>
-<p>배포가 끝난 직후 운영 사이트를 열면 <strong>아무것도 바뀌지 않은 것처럼</strong> 보입니다. 운영 DB의 기존 데이터에는 품절 값이 비어 있기 때문입니다.</p>
+<p>배포 직후 운영 사이트는 <strong>아무것도 바뀌지 않은 것처럼</strong> 보입니다. 운영 DB의 기존 데이터에는 품절 값이 비어 있기 때문입니다.</p>
 
-<h2>8. 운영에서 켜기</h2>
+<h2>8. 운영에서 켜기 <span class="tier db">DB</span></h2>
 <p>운영 관리자 화면(06장의 AdminUrl)에서 로컬과 같은 조작을 합니다: <strong>Content Manager → Extra → チャーシュー → soldOut TRUE → Publish</strong>. 운영 사이트를 새로고침하면 1절의 "변경 후" 화면이 됩니다. 품절이 풀리면 FALSE로 되돌리면 되고, 이것은 배포 없이 바로 반영됩니다.</p>
-<div class="note"><strong>스키마는 배포되고, 데이터는 배포되지 않는다.</strong> 필드(그릇)는 코드로 운영에 갔지만, "무엇이 품절인가"(데이터)는 로컬에서 켜 둔 것이 운영으로 가지 않습니다. 가게의 품절처럼 날마다 바뀌는 것은 데이터로, 표시 방법처럼 한 번 정하면 되는 것은 코드로 둡니다.</div>
+<div class="key"><strong>스키마는 배포되고, 데이터는 배포되지 않는다.</strong> 필드(그릇)는 코드로 운영에 갔지만, "무엇이 품절인가"(데이터)는 로컬에서 켜 둔 것이 운영으로 가지 않습니다. 날마다 바뀌는 것은 데이터로, 한 번 정하면 되는 표시 방법은 코드로 둡니다.</div>
 
-<h2>9. 전체를 돌아보며</h2>
-<p>이 장에서 한 일은 00장에서 그린 흐름 그대로입니다.</p>
-<table>
-<tr><th>장</th><th>이번 변경에서 쓰인 것</th></tr>
-<tr><td>01 로컬 환경</td><td><code>pnpm dev:db</code> / <code>dev:cms</code> / <code>dev:web</code></td></tr>
-<tr><td>02 스키마</td><td>Content-Type Builder로 필드 추가 → <code>schema.json</code></td></tr>
-<tr><td>03 데이터</td><td>관리자 화면에서 값 입력·Publish (로컬과 운영에서 각각)</td></tr>
-<tr><td>04 화면</td><td><code>pnpm gen:types</code>, 받아 온 값으로 표시 바꾸기</td></tr>
-<tr><td>05 CI</td><td>커밋 전 lefthook, PR의 검사 4개, squash 머지</td></tr>
-<tr><td>06 CD</td><td>머지 → 이미지 한 번 빌드 → 자동 배포 → 무중단 교체</td></tr>
-</table>
-<p>여러분의 사이트에서도 같습니다. 기능을 바꿀 때마다 <strong>로컬에서 만들고 확인 → PR → 머지</strong>만 하면 운영까지 갑니다. 운영에서 사람이 하는 일은 데이터를 입력하는 것뿐입니다.</p>
-
-<h2>10. 커밋</h2>
-<p>main의 커밋은 PR 제목 그대로입니다.</p>
+<h2>9. 커밋</h2>
 <pre><code>feat: 追加メニューに「売り切れ」表示を追加 (#6)</code></pre>
 
-<nav class="pager"><a href="06-deploy.html">← 06 배포(CD)</a><a href="00-overview.html">00 전체 구조로 →</a></nav>
+<nav class="pager"><a href="06-deploy.html">← 06 CD·배포</a><a href="08-summary.html">08 정리 →</a></nav>
 </main>
 </body>
 </html>

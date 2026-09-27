@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 정리</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 08</div>
+  <h1>정리: 전체를 한 장으로, 그리고 여러분이 할 일</h1>
+  <p class="lead">00장부터 07장까지 만든 것을 한 번에 돌아봅니다. 생각보다 적은 코드로 화면·백엔드·DB를 나누고, 자동 검사와 자동 배포까지 연결했습니다.</p>
+  {{MAP:08}}
+</header>
+
+<h2>1. 무엇을 만들었나</h2>
+<div class="flow">
+  <div><span class="tier front">프론트엔드</span><b>Next.js</b>손님에게 보여 줄 화면을 서버에서 만든다. API 토큰은 서버에만</div>
+  <div class="arr">→</div>
+  <div><span class="tier back">백엔드</span><b>Strapi</b>관리자 화면에서 데이터 구조를 만들면 API가 자동으로 생긴다</div>
+  <div class="arr">→</div>
+  <div><span class="tier db">DB</span><b>PostgreSQL</b>데이터를 보관한다. 사진은 S3에</div>
+</div>
+<figure>
+{{INC:svg/00-0.svg}}
+<figcaption>운영(AWS)의 모습. 입구(CloudFront·ALB) → 앱(Next.js·Strapi) → 데이터(Aurora·S3)의 3층</figcaption>
+</figure>
+<p>직접 쓴 코드는 <strong>화면(page.tsx 등 몇 개 파일)</strong>과 <strong>설정 파일</strong>이 대부분입니다. 데이터 구조와 API는 Strapi 관리자 화면에서 클릭으로 만들었습니다. 백엔드를 처음부터 짜지 않아도, 이렇게 역할을 나눈 구성을 만들 수 있습니다.</p>
+
+<h2>2. 개발부터 운영까지</h2>
+<div class="flow">
+  <div><b>내 PC</b>만들고 확인<small>01~04장 · 커밋 직전 자동 검사</small></div><div class="arr">→</div>
+  <div><b>PR</b>자동 검사(CI)<small>05장 · 통과해야 머지</small></div><div class="arr">→</div>
+  <div><b>머지</b>main이 바뀜<small>05장</small></div><div class="arr">→</div>
+  <div class="hl"><b>자동 배포(CD)</b>이미지 한 번 빌드 → AWS 반영<small>06장</small></div><div class="arr">→</div>
+  <div><b>운영</b>데이터는 운영 관리자 화면에서<small>06·07장</small></div>
+</div>
+
+<h2>3. 장별로 한 일</h2>
+<table>
+<tr><th>장</th><th>한 일</th><th>기억할 한 가지</th></tr>
+<tr><td>00 전체 구조</td><td>완성된 모습과 흐름</td><td>프론트·백엔드·DB는 가게의 홀·주방·창고</td></tr>
+<tr><td>01 로컬 환경</td><td>저장소 하나에 화면·CMS, DB는 컨테이너</td><td>설정 값은 환경변수로. 로컬과 운영은 넣는 곳만 다르다</td></tr>
+<tr><td>02 스키마</td><td>데이터의 그릇 설계</td><td>하나뿐? 여러 개? 붙어 있나, 공유하나?</td></tr>
+<tr><td>03 데이터·API</td><td>입력·공개, API 토큰</td><td>API는 처음에 잠겨 있다. 토큰은 읽기만 허용</td></tr>
+<tr><td>04 화면</td><td>서버에서 데이터를 가져와 표시</td><td>토큰은 서버에만. 타입은 스키마에서 자동 생성</td></tr>
+<tr><td>05 CI</td><td>커밋 직전·PR마다 자동 검사, main 보호</td><td>검사를 통과한 코드만 main에 들어간다</td></tr>
+<tr><td>06 CD·배포</td><td>머지하면 AWS에 자동 배포, 운영 초기 설정</td><td>이미지는 한 번 만들고 그대로 배포. GitHub에 비밀 값을 두지 않는다</td></tr>
+<tr><td>07 변경을 운영까지</td><td>작은 기능 하나를 처음부터 끝까지</td><td>스키마는 배포되고, 데이터는 배포되지 않는다</td></tr>
+</table>
+
+<h2>4. 사람이 하는 일, 자동으로 되는 일</h2>
+<table>
+<tr><th></th><th>사람이 하는 일</th><th>자동으로 되는 일</th></tr>
+<tr><td><strong>처음 한 번</strong></td><td>도구 설치, 저장소 설정(Ruleset), AWS의 토대(이미지 보관소·역할), GitHub 시크릿 2개</td><td>—</td></tr>
+<tr><td><strong>기능을 바꿀 때마다</strong></td><td>로컬에서 만들고 확인 → PR → 머지</td><td>커밋 직전 검사·타입 생성, PR 검사, 이미지 빌드·검사, AWS 배포, 무중단 교체</td></tr>
+<tr><td><strong>운영에서</strong></td><td>데이터 입력·공개(첫 배포 직후에는 관리자 등록·API 토큰도)</td><td>—</td></tr>
+</table>
+
+<h2>5. 어디에나 통하는 원칙 다섯 가지</h2>
+<div class="cards">
+  <div class="card"><h4>비밀 값은 코드 밖에</h4><p>로컬은 <code>.env</code>(Git 제외), 운영은 Secrets Manager. 코드·이미지·GitHub에 남기지 않는다</p></div>
+  <div class="card"><h4>출입증은 서버에만</h4><p>API 토큰은 화면을 만드는 서버만 갖는다. 브라우저에는 결과(HTML)만</p></div>
+  <div class="card"><h4>권한은 필요한 만큼만</h4><p>토큰은 읽기만, CI는 읽기만, GitHub의 AWS 역할은 할 일 하나만</p></div>
+  <div class="card"><h4>검사를 통과한 것만 main에</h4><p>사람의 기억이 아니라 기계의 검사와 저장소 규칙으로 지킨다</p></div>
+  <div class="card"><h4>같은 코드를 모든 환경에서</h4><p>로컬과 운영은 코드가 같고, 환경변수로 넣는 값만 다르다</p></div>
+</div>
+
+<h2>6. 여러분이 할 일</h2>
+<p>여기까지 라멘 가게를 예로 <strong>개발부터 운영 배포까지의 전체 과정</strong>을 살펴보았습니다. 이제 이것을 참고해, <strong>여러분이 구상한 인프라를 바탕으로 자신만의 CMS 사이트를 개발</strong>해 주세요.</p>
+<ol class="steps">
+  <li><strong>주제를 정하고 "화면에 보여 줄 정보"를 적는다</strong> → 3가지 질문으로 그릇을 고른다(02장)</li>
+  <li><strong>로컬 환경을 만든다</strong>: 저장소 하나에 화면·CMS, DB는 컨테이너(01장). 여러분의 설계가 MySQL이면 Strapi를 MySQL로 만들어도 됩니다</li>
+  <li><strong>스키마 → 데이터 → 토큰</strong>(02·03장)</li>
+  <li><strong>화면을 만든다</strong>: 받아 온 값을 어디에 넣을지부터(04장). 디자인은 자유</li>
+  <li><strong>GitHub와 CI를 붙인다</strong>(05장). 회사 저장소에서 쓸 수 있는 기능을 먼저 확인</li>
+  <li><strong>여러분의 인프라에 배포한다</strong>(06장). 00장의 "WordPress 기준 설계와 다른 점" 표를 보고 설계에 반영합니다: 앱 2개, 입구의 분배, 앱끼리의 통신, 사진은 S3</li>
+  <li><strong>작은 변경을 운영까지 보내 본다</strong>(07장). 흐름이 한 바퀴 돌면 완성입니다</li>
+</ol>
+<div class="key">막히면 이 저장소를 보세요. 문서에 나온 설정은 모두 실제로 동작한 파일 그대로입니다: 화면 <code>apps/web/</code>, CMS <code>apps/cms/</code>, 자동 검사 <code>lefthook.yml</code>·<code>.github/workflows/ci.yml</code>, 자동 배포 <code>.github/workflows/deploy.yml</code>, AWS 구성 <code>infra/</code>.</div>
+
+<nav class="pager"><a href="07-change-to-production.html">← 07 변경을 운영까지</a><a href="00-overview.html">00 전체 구조로 →</a></nav>
+</main>
+</body>
+</html>

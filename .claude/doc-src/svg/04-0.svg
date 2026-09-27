@@ -1,0 +1,10 @@
+<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="서버 컴포넌트 흐름">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="box" x="10" y="50" width="170" height="90" rx="10"/><text class="t" x="95" y="90" text-anchor="middle">브라우저</text><text class="s" x="95" y="110" text-anchor="middle">토큰을 모름</text>
+  <rect class="hl" x="330" y="30" width="240" height="130" rx="12"/><text class="t" x="450" y="60" text-anchor="middle">Next.js 서버</text><text x="450" y="90" text-anchor="middle">서버 컴포넌트 (page.tsx)</text><text class="s" x="450" y="114" text-anchor="middle">.env.local 의 토큰을 읽는다</text>
+  <rect class="box" x="720" y="50" width="170" height="90" rx="10"/><text class="t" x="805" y="90" text-anchor="middle">Strapi</text><text class="s" x="805" y="110" text-anchor="middle">:1337/api</text>
+  <path class="ar" d="M180 80 H326"/><text class="s" x="190" y="70">① 페이지 요청</text>
+  <path class="ar" d="M570 80 H716"/><text class="s" x="580" y="70">② 토큰 + API 호출</text>
+  <path class="ar" d="M716 115 H574"/><text class="s" x="600" y="135">③ JSON</text>
+  <path class="ar" d="M326 115 H184"/><text class="s" x="195" y="135">④ 완성된 HTML만</text>
+</svg>

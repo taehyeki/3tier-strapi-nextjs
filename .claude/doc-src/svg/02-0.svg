@@ -1,0 +1,43 @@
+<svg class="dg" viewBox="0 0 900 610" role="img" aria-label="메뉴판으로 보는 4가지 그릇">
+  <defs>
+    <style>
+      .sg{fill:none;stroke:#e8590c;stroke-width:2.5;stroke-dasharray:7 4}
+      .cl{fill:var(--card);stroke:#1c7ed6;stroke-width:2.5}
+      .cp{fill:color-mix(in srgb,#2f9e44 10%,transparent);stroke:#2f9e44;stroke-width:2;stroke-dasharray:5 3}
+      .rl{stroke:#7048e8;stroke-width:2.2;fill:none;stroke-dasharray:6 4}
+      .pill-s{fill:#e8590c}.pill-c{fill:#1c7ed6}.pill-p{fill:#2f9e44}.pill-r{fill:#7048e8}
+      .pt{fill:#fff;font-size:12.5px;font-weight:700}
+      .big{font-size:24px;font-weight:800}
+    </style>
+  </defs>
+  <rect x="10" y="10" width="880" height="590" rx="18" style="fill:var(--code);stroke:var(--line)"/>
+  <!-- Single -->
+  <rect class="sg" x="40" y="34" width="820" height="92" rx="10"/>
+  <text x="64" y="78" style="font-size:24px;font-weight:800">麺屋ヤマモリ</text>
+  <text x="64" y="106" class="s">キム系ラーメン ・ 営業 11:00〜15:00 ・ 定休日 水曜 ・ 東京都〇〇区…</text>
+  <rect class="pill-s" x="706" y="46" width="140" height="26" rx="13"/><text class="pt" x="776" y="64" text-anchor="middle">① Single Type</text>
+  <!-- Collection cards -->
+  <rect class="cl" x="60" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/ramen.png" x="75" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="220" y="200" style="font-size:18px">ラーメン</text><text class="s" x="220" y="222">極太麺・豚骨醤油</text>
+  <rect class="cp" x="75" y="286" width="270" height="104" rx="8"/>
+  <text x="95" y="314">小　麺300g　800円</text><text x="95" y="340">中　麺400g　900円</text><text x="95" y="366">大　麺500g　1000円</text>
+  <rect class="cl" x="540" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/tsukemen.png" x="555" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="700" y="200" style="font-size:18px">つけ麺</text><text class="s" x="700" y="222">濃厚つけダレ</text>
+  <rect class="cp" x="555" y="286" width="270" height="104" rx="8"/>
+  <text x="575" y="314">小　麺300g　900円</text><text x="575" y="340">中　麺400g　1000円</text><text x="575" y="366">大　麺500g　1100円</text>
+  <rect class="pill-c" x="380" y="196" width="140" height="26" rx="13"/><text class="pt" x="450" y="214" text-anchor="middle">② Collection</text>
+  <text class="s" x="450" y="240" text-anchor="middle">같은 모양의 카드가</text><text class="s" x="450" y="256" text-anchor="middle">여러 장</text>
+  <rect class="pill-p" x="380" y="322" width="140" height="26" rx="13"/><text class="pt" x="450" y="340" text-anchor="middle">③ Component</text>
+  <text class="s" x="450" y="366" text-anchor="middle">카드 안에 붙은 부품</text>
+  <!-- bottom collections -->
+  <rect class="cl" x="60" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="80" y="518">追加 (有料)</text><text x="80" y="546">ライス ＋100円</text><text x="80" y="570">チャーシュー ＋200円</text>
+  <rect class="cl" x="500" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="520" y="518">無料トッピング</text><text x="520" y="546">ニンニク・ヤサイ・アブラ・カラメ</text><text x="520" y="570" class="s">量: ナシ / フツウ / マシ / マシマシ</text>
+  <!-- relations -->
+  <path class="rl" d="M210 406 L230 488"/><path class="rl" d="M210 406 L670 488"/>
+  <path class="rl" d="M690 406 L230 488"/><path class="rl" d="M690 406 L670 488"/>
+  <rect class="pill-r" x="380" y="424" width="140" height="26" rx="13"/><text class="pt" x="450" y="442" text-anchor="middle">④ Relation</text>
+</svg>

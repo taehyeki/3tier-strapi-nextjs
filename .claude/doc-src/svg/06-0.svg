@@ -1,0 +1,31 @@
+<svg viewBox="0 0 860 230" width="100%" role="img" aria-label="CI와 CD의 흐름">
+  <style>.b{fill:var(--card);stroke:var(--line);stroke-width:1.5}.h{fill:color-mix(in srgb,var(--accent,#c2410c) 8%,var(--card));stroke:var(--accent,#c2410c);stroke-width:1.5}.a{fill:none;stroke:var(--accent,#c2410c);stroke-width:2;marker-end:url(#m6)}.t{fill:var(--fg);font-size:14px;font-weight:700}.s{fill:var(--muted);font-size:12px}</style>
+  <defs><marker id="m6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#c2410c)"/></marker></defs>
+  <rect class="b" x="10" y="20" width="170" height="150" rx="12"/>
+  <text class="t" x="24" y="46">PR (05장)</text>
+  <text class="s" x="24" y="72">ci.yml</text>
+  <text class="s" x="24" y="92">빌드·검사만</text>
+  <text class="s" x="24" y="112">(어디에도 올리지 않음)</text>
+  <text class="s" x="24" y="152">통과해야 머지</text>
+  <path class="a" d="M180,95 L220,95"/>
+  <rect class="h" x="220" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="234" y="46">① publish</text>
+  <text class="s" x="234" y="72">deploy.yml (main)</text>
+  <text class="s" x="234" y="92">빌드 → Trivy 검사</text>
+  <text class="s" x="234" y="112">→ ECR 에 push</text>
+  <text class="s" x="234" y="152">태그 = 커밋 SHA</text>
+  <path class="a" d="M420,95 L460,95"/>
+  <rect class="h" x="460" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="474" y="46">② deploy</text>
+  <text class="s" x="474" y="72">환경 3tier-prod</text>
+  <text class="s" x="474" y="92">cdk deploy</text>
+  <text class="s" x="474" y="112">-c imageTag=&lt;SHA&gt;</text>
+  <text class="s" x="474" y="152">빌드하지 않음</text>
+  <path class="a" d="M660,95 L700,95"/>
+  <rect class="b" x="700" y="20" width="150" height="150" rx="12"/>
+  <text class="t" x="714" y="46">AWS</text>
+  <text class="s" x="714" y="72">인프라 변경 반영</text>
+  <text class="s" x="714" y="92">ECS 가 새 이미지로</text>
+  <text class="s" x="714" y="112">교체 (무중단)</text>
+  <text class="s" x="10" y="205">이미지는 main 에서 한 번만 만든다. 배포는 "검사를 통과한 그 이미지"를 가리키기만 한다 (build once, deploy many).</text>
+</svg>

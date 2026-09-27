@@ -1,0 +1,9 @@
+<svg class="dg" viewBox="0 0 980 190" role="img" aria-label="로컬 구성도">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="grp" x="10" y="10" width="960" height="170" rx="10"/><text class="t" x="26" y="34">내 PC</text>
+  <rect class="box" x="40" y="60" width="160" height="80" rx="10"/><text class="t" x="120" y="96" text-anchor="middle">브라우저</text><text class="s" x="120" y="116" text-anchor="middle">localhost:3000 / 1337</text>
+  <rect class="hl" x="270" y="60" width="180" height="80" rx="10"/><text class="t" x="360" y="92" text-anchor="middle">Next.js :3000</text><text class="s" x="360" y="112" text-anchor="middle">pnpm dev:web</text>
+  <rect class="hl" x="520" y="60" width="180" height="80" rx="10"/><text class="t" x="610" y="92" text-anchor="middle">Strapi :1337</text><text class="s" x="610" y="112" text-anchor="middle">pnpm dev:cms</text>
+  <rect class="box" x="770" y="50" width="180" height="100" rx="10" style="stroke-dasharray:5 3"/><text class="t" x="860" y="88" text-anchor="middle">PostgreSQL :5432</text><text class="s" x="860" y="108" text-anchor="middle">Docker 컨테이너</text><text class="s" x="860" y="126" text-anchor="middle">pnpm dev:db</text>
+  <path class="ar" d="M200 100 H266"/><path class="ar" d="M450 100 H516"/><path class="ar" d="M700 100 H766"/>
+</svg>

@@ -12,22 +12,14 @@
   <div class="no">CHAPTER 01</div>
   <h1>로컬 환경: 내 PC에 3층을 작게 만든다</h1>
   <p class="lead">빈 폴더에서 시작해 화면(Next.js), CMS(Strapi), DB(PostgreSQL)가 내 PC에서 모두 뜨는 상태까지 만듭니다. 대부분은 생성 도구가 만들어 주므로, 직접 하는 일은 많지 않습니다.</p>
-  <ol class="chmap" aria-label="장 지도"><li><a href="00-overview.html">00 전체 구조</a></li><li class="on"><span>01 로컬 환경</span></li><li><a href="02-strapi-schema.html">02 스키마</a></li><li><a href="03-data-and-api.html">03 데이터·API</a></li><li><a href="04-nextjs-page.html">04 화면</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD·배포</a></li><li><a href="07-change-to-production.html">07 변경을 운영까지</a></li><li><a href="08-summary.html">08 정리</a></li></ol>
+  {{MAP:01}}
 </header>
 
 <p class="goal"><code>http://localhost:3000</code>(화면)과 <code>http://localhost:1337/admin</code>(CMS 관리자 화면)이 열리고, CMS가 DB에 연결된 상태를 만든다.</p>
 
 <h2>1. 무엇을 만드나</h2>
 <figure>
-<svg class="dg" viewBox="0 0 980 190" role="img" aria-label="로컬 구성도">
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
-  <rect class="grp" x="10" y="10" width="960" height="170" rx="10"/><text class="t" x="26" y="34">내 PC</text>
-  <rect class="box" x="40" y="60" width="160" height="80" rx="10"/><text class="t" x="120" y="96" text-anchor="middle">브라우저</text><text class="s" x="120" y="116" text-anchor="middle">localhost:3000 / 1337</text>
-  <rect class="hl" x="270" y="60" width="180" height="80" rx="10"/><text class="t" x="360" y="92" text-anchor="middle">Next.js :3000</text><text class="s" x="360" y="112" text-anchor="middle">pnpm dev:web</text>
-  <rect class="hl" x="520" y="60" width="180" height="80" rx="10"/><text class="t" x="610" y="92" text-anchor="middle">Strapi :1337</text><text class="s" x="610" y="112" text-anchor="middle">pnpm dev:cms</text>
-  <rect class="box" x="770" y="50" width="180" height="100" rx="10" style="stroke-dasharray:5 3"/><text class="t" x="860" y="88" text-anchor="middle">PostgreSQL :5432</text><text class="s" x="860" y="108" text-anchor="middle">Docker 컨테이너</text><text class="s" x="860" y="126" text-anchor="middle">pnpm dev:db</text>
-  <path class="ar" d="M200 100 H266"/><path class="ar" d="M450 100 H516"/><path class="ar" d="M700 100 H766"/>
-</svg>
+{{INC:svg/00-1.svg}}
 <figcaption>화면과 CMS는 PC에서 직접 실행하고(코드를 고치면 바로 반영), DB만 Docker 컨테이너로 띄웁니다</figcaption>
 </figure>
 <p>세 가지를 <strong>저장소(폴더) 하나</strong>에 둡니다. 이런 구성을 <em>모노레포</em>라고 합니다. "CMS의 데이터 구조 변경 + 화면 변경"을 한 번에 검사하고 배포할 수 있어서 편합니다.</p>

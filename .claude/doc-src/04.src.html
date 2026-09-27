@@ -12,23 +12,14 @@
   <div class="no">CHAPTER 04 · <span class="tier front">프론트</span></div>
   <h1>화면: 서버에서 안전하게 데이터를 가져와 보여 준다</h1>
   <p class="lead">03장에서 <code>curl</code>로 한 일을 Next.js 서버가 대신하게 하고, 받아 온 데이터로 메뉴 페이지를 그립니다. 화면 디자인은 여러분의 사이트에 맞게 자유롭게 만들면 됩니다.</p>
-  <ol class="chmap" aria-label="장 지도"><li><a href="00-overview.html">00 전체 구조</a></li><li><a href="01-local-setup.html">01 로컬 환경</a></li><li><a href="02-strapi-schema.html">02 스키마</a></li><li><a href="03-data-and-api.html">03 데이터·API</a></li><li class="on"><span>04 화면</span></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD·배포</a></li><li><a href="07-change-to-production.html">07 변경을 운영까지</a></li><li><a href="08-summary.html">08 정리</a></li></ol>
+  {{MAP:04}}
 </header>
 
 <p class="goal">Next.js 서버가 토큰으로 Strapi의 데이터를 가져와 메뉴 페이지를 표시하고, 토큰이 브라우저에 전달되지 않는 것을 확인한다.</p>
 
 <h2>1. 구조: 토큰은 서버에만</h2>
 <figure>
-<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="서버 컴포넌트 흐름">
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
-  <rect class="box" x="10" y="50" width="170" height="90" rx="10"/><text class="t" x="95" y="90" text-anchor="middle">브라우저</text><text class="s" x="95" y="110" text-anchor="middle">토큰을 모름</text>
-  <rect class="hl" x="330" y="30" width="240" height="130" rx="12"/><text class="t" x="450" y="60" text-anchor="middle">Next.js 서버</text><text x="450" y="90" text-anchor="middle">서버 컴포넌트 (page.tsx)</text><text class="s" x="450" y="114" text-anchor="middle">.env.local 의 토큰을 읽는다</text>
-  <rect class="box" x="720" y="50" width="170" height="90" rx="10"/><text class="t" x="805" y="90" text-anchor="middle">Strapi</text><text class="s" x="805" y="110" text-anchor="middle">:1337/api</text>
-  <path class="ar" d="M180 80 H326"/><text class="s" x="190" y="70">① 페이지 요청</text>
-  <path class="ar" d="M570 80 H716"/><text class="s" x="580" y="70">② 토큰 + API 호출</text>
-  <path class="ar" d="M716 115 H574"/><text class="s" x="600" y="135">③ JSON</text>
-  <path class="ar" d="M326 115 H184"/><text class="s" x="195" y="135">④ 완성된 HTML만</text>
-</svg>
+{{INC:svg/04-0.svg}}
 </figure>
 <p>Next.js의 <strong>서버 컴포넌트</strong>는 서버에서만 실행되는 화면 코드입니다(App Router에서는 기본값). 여기서 토큰을 쓰면 브라우저에는 완성된 HTML만 가고, 토큰과 호출 코드는 가지 않습니다. 00장 비유의 "홀 직원만 출입증을 가진다"가 이것입니다.</p>
 
@@ -46,16 +37,7 @@ pnpm -F web add -D openapi-typescript</code></pre>
 <h2>3. 타입 자동 생성: 스키마를 다시 쓰지 않는다</h2>
 <p>화면 코드가 "메뉴에는 name, sizes…가 있다"를 알면, 오타를 에디터가 바로 알려 줍니다. 이 정보(타입)를 손으로 쓰면 02장의 스키마를 한 번 더 적는 셈이므로, <strong>스키마에서 자동으로 만듭니다.</strong></p>
 <figure>
-<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="타입 생성 흐름">
-  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
-  <rect class="box" x="10" y="40" width="190" height="70" rx="10"/><text class="t" x="105" y="70" text-anchor="middle">Strapi 스키마</text><text class="s" x="105" y="90" text-anchor="middle">02장의 schema.json</text>
-  <rect class="box" x="355" y="40" width="190" height="70" rx="10"/><text class="t" x="450" y="70" text-anchor="middle">API 명세</text><text class="s" x="450" y="90" text-anchor="middle">apps/cms/openapi.json</text>
-  <rect class="hl" x="700" y="40" width="190" height="70" rx="10"/><text class="t" x="795" y="70" text-anchor="middle">TypeScript 타입</text><text class="s" x="795" y="90" text-anchor="middle">apps/web/src/types/strapi.d.ts</text>
-  <path class="ar" d="M200 75 H351"/><text class="s" x="210" y="65">strapi openapi generate</text>
-  <path class="ar" d="M545 75 H696"/><text class="s" x="560" y="65">openapi-typescript</text>
-  <text class="s" x="10" y="140">내용은 스키마(설계도)에서 나온다. DB 의 데이터는 쓰지 않지만, 생성할 때 Strapi 를 한 번 띄우므로 DB 가 켜져 있어야 한다.</text>
-  <text class="s" x="10" y="164">명령은 pnpm gen:types 하나. 05장부터는 스키마 파일이 든 커밋에서 lefthook 이 자동으로 실행한다.</text>
-</svg>
+{{INC:svg/04-1.svg}}
 </figure>
 <p class="where">실행 위치: 저장소 루트 (DB 실행 중)</p>
 <pre><code>pnpm gen:types</code></pre>
@@ -74,24 +56,7 @@ npm pkg set scripts.gen:types="pnpm -F cms openapi &amp;&amp; pnpm -F web gen:ty
   <div><code>apps/web/src/lib/strapi.ts</code><p>Strapi에 접속하는 준비. URL과 토큰은 <strong>환경변수</strong>에서 읽는다(로컬은 <code>.env.local</code>, 운영은 AWS가 넣어 줌). 없으면 바로 오류를 내서 설정 실수를 빨리 알 수 있다</p></div>
   <div><code>apps/web/src/lib/menu.ts</code><p>메뉴 페이지에 필요한 데이터를 한 번에 가져온다. 사진·사이즈·토핑처럼 <strong>함께 가져올 것</strong>(03장의 <code>populate</code>)을 여기서 지정한다</p></div>
 </div>
-<p class="file">apps/web/src/lib/strapi.ts</p>
-<pre><code>import "server-only";
-import { strapi } from "@strapi/client";
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`환경변수 ${name} 가 설정되지 않았습니다`);
-  }
-  return value;
-}
-
-export function createStrapiClient() {
-  return strapi({
-    baseURL: `${requireEnv("STRAPI_URL")}/api`,
-    auth: requireEnv("STRAPI_API_TOKEN"),
-  });
-}</code></pre>
+{{EX:apps/web/src/lib/strapi.ts:4:20}}
 <details class="opt">
 <summary>"요청이 올 때마다 조회"하는 이유 (<code>connection()</code>) <span class="skip">생략 가능</span></summary>
 <p><code>menu.ts</code>는 조회 전에 <code>await connection()</code>을 부릅니다. "빌드할 때가 아니라 손님이 페이지를 열 때 Strapi에 물어보라"는 표시입니다. 그래서 ① 관리자 화면에서 Publish한 내용이 새로고침만으로 반영되고, ② 자동 빌드(05·06장)에서 Strapi가 없어도 빌드가 되며, ③ 같은 이미지를 로컬·운영 어디서든 쓸 수 있습니다.</p>
