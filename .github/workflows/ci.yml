@@ -34,7 +34,7 @@ jobs:
       - run: pnpm typecheck
       # 인프라 코드(CDK)가 CloudFormation 템플릿으로 변환되는지 확인 (AWS 에는 접속하지 않음)
       - run: pnpm -F infra exec cdk synth --quiet -c imageTag=check
-      - run: pnpm -F infra foundation synth --quiet -c githubRepository="$GITHUB_REPOSITORY"
+      - run: pnpm -F infra foundation synth --quiet -c githubSubjectPrefix="repo:$GITHUB_REPOSITORY"
 
   # 시크릿(비밀번호·토큰)이 커밋 히스토리에 들어가지 않았는지
   secrets:
