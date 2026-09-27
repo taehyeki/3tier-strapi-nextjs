@@ -1,0 +1,13 @@
+# git commit 직전에 자동으로 실행되는 검사 (lefthook)
+# 문제가 있으면 커밋이 만들어지지 않는다. 같은 검사를 GitHub Actions(CI)에서도 한 번 더 한다.
+pre-commit:
+  parallel: true
+  jobs:
+    # 코드 모양 자동 수정 + 실수 검출. 고친 파일은 자동으로 다시 스테이징한다
+    - name: biome
+      glob: "*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    # 비밀번호·토큰 같은 시크릿이 커밋에 들어가지 않았는지 검사 (Docker 로 실행하므로 따로 설치할 필요 없음)
+    - name: gitleaks
+      run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --pre-commit --staged --redact --verbose /repo

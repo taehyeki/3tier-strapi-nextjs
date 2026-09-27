@@ -4,8 +4,16 @@ packages:
 
 # 설치할 때 패키지의 빌드 스크립트(postinstall 등)를 실행할지 정합니다.
 # pnpm 은 기본적으로 모두 막고, 여기에 적히지 않은 패키지가 스크립트를 가지고 있으면 설치를 멈춥니다 (공급망 공격 방지).
-# 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 모두 false(실행 안 함)로 둡니다.
+# 아래 패키지는 스크립트를 실행하지 않아도 동작하므로 false(실행 안 함)로 둡니다.
+# lefthook 만 true: 설치할 때 git hook 을 등록하는 스크립트가 필요합니다 (05장).
 allowBuilds:
   "@swc/core": false
   core-js-pure: false
   esbuild: false
+  lefthook: true
+
+# Strapi 가 버전을 정확히 고정한 간접 의존 중, 취약점이 고쳐진 버전이 있는 것을 강제로 올립니다 (05장 Trivy 검출).
+# Strapi 를 업데이트할 때는 이 블록을 지우고, CI(Trivy)가 통과하는지 다시 확인합니다.
+overrides:
+  sharp: 0.35.4
+  nodemailer: 9.1.0

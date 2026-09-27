@@ -75,6 +75,23 @@
 - Dockerfile: `node:24-alpine`, 멀티 스테이지, 비root(`node`), 빌드 컨텍스트 = 저장소 루트, pnpm 버전은 packageManager 에서 읽어 `npm i -g`.
   web = Next `output: "standalone"`(Next 공식 Docker 예시 기반). cms = `pnpm deploy --prod` + dist, `public/uploads` 생성(없으면 Strapi 기동 실패).
 - 머지 방식은 squash 만 — PR 1개 = main 커밋 1개(장별 커밋 원칙, PR 제목이 Conventional Commits 메시지). 승인 인원 0(연수자 1인 저장소).
+- Trivy 가 첫 PR 에서 HIGH 를 검출(2026-09-27). 대응 순서 "고칠 수 있으면 올린다 → 실행에 안 쓰면 뺀다 → 둘 다 안 되면 근거·만료일과 예외" 중 앞의 둘만으로 해결(담당자 결정):
+  - 실행 이미지에서 npm·corepack 삭제(베이스 이미지 동봉, 실행에 불필요).
+  - Strapi 가 정확히 고정한 sharp 0.35.3 → 0.35.4, nodemailer 9.0.1 → 9.1.0 을 `pnpm-workspace.yaml` overrides 로(조건 없는 지정. webpack 플러그인이 sharp 를 `*` peer 로 요구해 `sharp@<0.35.4` 조건은 안 먹음). Strapi 업데이트 시 overrides 삭제 후 재확인.
+  - cms: vite 와 vite 전용 esbuild 0.21.5 를 `/out` 에서 빼고 복사(빌드 1단계에서만 사용. 레이어에 남지 않도록 COPY 전에 삭제). esbuild 0.28.x 는 유지 — `strapi` CLI 가 켜질 때 모든 명령을 등록하며 build 코드(`cli/commands/build.js` → `node/build.js` → `node/core/files.js` → esbuild-register → esbuild)까지 require 하므로, start 가 쓰지 않아도 없으면 기동 실패(실험). start 의 설정 읽기는 `dist/config/*.js` 를 일반 require 로 함(@strapi/core `load-config-file.js`, esbuild 무관).
+  / 버린 대안: `.trivyignore.yaml` 예외(코드가 이미지에 남음), 기준 완화(CRITICAL 도 있어 무의미).
+- 로컬 Strapi `HOST=0.0.0.0`(생성기 기본값) 유지 — 담당자 결정. vite 개발 서버 취약점(Windows)은 같은 네트워크에서 접근 가능할 때만 성립, 위험 낮음.
+- Trivy 결과는 ① SARIF → Security 탭(기본 목록은 main 기준이라 머지 후 표시), ② 관문(exit-code 1), ③ 표를 Job Summary 에(`TRIVY_TABLE_MODE=detailed`, 없으면 "없음") — PR 코멘트는 `pull-requests: write` 와 외부 액션이 필요해 안 씀.
+  "GitHub Advanced Security / Trivy" 체크와 봇 코멘트는 SARIF 업로드 시 GitHub 이 자동 생성(우리가 만든 job 아님).
+- Secret scanning·Push protection 은 public 저장소에서 이미 켜져 있었음(설정 불필요). 담당자 개입은 머지 방식·Ruleset 만.
+- SARIF 업로드 **유지**(2026-09-27 담당자 확인). 업로드 한 단계가 GitHub 쪽에서 일으키는 일(경고 생성, 다음 분석에 없으면 fixed 로 자동 종료,
+  PR 체크 "Code scanning results / Trivy" 자동 생성, 최초 1회 봇 코멘트, Security 탭 기본 필터는 main 의 열린 경고)을 문서에 표로 싣는다.
+  CodeQL(소스 코드 정적 분석)은 켜지 않음(`default-setup: not-configured`). 이미지 경고는 위치가 이미지 안 경로라 PR 줄 주석은 안 뜸.
+- 설명 원칙: 설정 하나가 **부수적으로 일으키는 동작까지 미리** 설명한다(담당자가 "설정한 것만 움직이길" 원함. 예상 밖 동작을 나중에 발견하게 하지 않는다).
+- GitHub 설정(머지 방식·Ruleset)은 담당자 위임으로 Claude 가 Playwright 로 조작·캡처(2026-09-27).
+  → 실제로는 rebase 해제 클릭이 Claude Code auto mode 분류기에 거부됨. merge commit 해제·브랜치 자동 삭제만 Claude 가 하고, 나머지(rebase 해제·squash 메시지·Ruleset)는 담당자가 조작, Claude 는 읽기 전용 캡처·API 확인.
+- 러너 `ubuntu-24.04` 고정 — ubuntu-latest 가 2026-10-19 부터 Ubuntu 26 으로 바뀜(연수 중 변동 방지, SHA 고정과 같은 원칙) / ubuntu-latest.
+- docker/build-push-action 의 기본 동작(Summary 의 Docker Build summary, Artifacts 의 .dockerbuild 빌드 기록 업로드)은 **유지**, 문서에 "자동으로 하는 일"로 명시(담당자 결정).
 
 ## 문서
 

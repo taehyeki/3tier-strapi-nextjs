@@ -16,6 +16,7 @@
     "gen:types": "pnpm -F cms openapi && pnpm -F web gen:types && biome format --write apps/web/src/types"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.14"
+    "@biomejs/biome": "2.5.14",
+    "lefthook": "^2.1.14"
   }
 }
