@@ -18,13 +18,13 @@
 | 02 스키마 | docs/ko/02-strapi-schema.html | 완료 (메뉴판 그림으로 4가지 그릇 설명) |
 | 03 데이터·API | docs/ko/03-data-and-api.html | 완료 (403/401/200 토큰 원리) |
 | 04 Next.js | docs/ko/04-nextjs-page.html | 완료 (타입 자동 생성, 화면은 "받은 값이 어디에 나오나"를 부분 코드+부분 스크린샷으로) |
-| 05 GitHub·CI | - | **진행 중**: 코드(Dockerfile·lefthook·ci.yml) 로컬 검증 완료, 브랜치 `ci/setup`. 다음: push → PR → GitHub 설정(담당자 개입) → 문서 |
-| 06 배포(CD) | - | 미착수 |
+| 05 GitHub·CI | docs/ko/05-github-ci.html | 한국어 초안 완료(담당자 검토 대기). PR #1 squash 머지(58d6e5a), Ruleset·머지 방식 설정 완료, main CI 통과 |
+| 06 배포(CD) | - | **다음 작업** |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
 장별 커밋 (pnpm 12 로 재작성 → 2026-09-27 메시지 일본어화. 이전: `backup/pre-pnpm12`, `backup/pre-ja-msg`):
 `a0b54d6 chore: ローカル開発環境を構築` / `e118ddf feat(cms): メニューのスキーマを追加` / `37d5e4c chore(web): Strapi 接続設定の例を追加` / `3057d62 feat(web): メニューページ`.
-origin 에는 옛 첫 커밋(682a56e, 한국어 메시지)만 있음 → main 을 force push 1회. 이후 코드 변경은 브랜치 → PR(squash) 로 한다.
+main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)`. **main 은 Ruleset 으로 보호**(PR 필수·CI 4개 필수·squash 만·force push 금지, bypass 없음) → 문서·설정 변경도 모두 브랜치 → PR.
 
 ## 확정된 설계 (근거는 notes/study-notes.html)
 
@@ -53,6 +53,9 @@ origin 에는 옛 첫 커밋(682a56e, 한국어 메시지)만 있음 → main �
 - Dockerfile 검증 완료: web 292MB(standalone, 서버는 `apps/web/server.js`), cms 1.09GB. 둘 다 `node` 사용자. cms 는 빈 DB 에 스키마 자동 생성, 토큰 없는 API 403
 - pnpm 12 에서는 담당자 PC 의 pnpm 10 이 자동 전환 못 함 → 담당자가 `npx get-pnpm` 필요(그 전까지 Claude 는 scratchpad 의 pnpm 12 사용)
 - Docker Desktop 스냅샷 오류("already exists")로 로컬 Trivy 이미지 pull 실패 → Docker Desktop 재시작으로 해결(이전에도 같은 증상)
+- GitHub 저장소 설정 변경은 Claude Code auto mode 분류기에 막힐 수 있음 → 담당자가 조작, Claude 는 읽기 전용 캡처·API 확인
+- GitHub 캡처는 페이지 안에서 아바타(img[src*=avatars])와 사용자명 텍스트에 CSS blur 를 건 뒤 찍는다. 문서 이미지: docs/assets/img/github/
+- 문서 생성: scratchpad 의 05.src.html 틀 + build05.py(`{{FILE:경로}}`·`{{EXCERPT:경로:시작:끝}}` 를 `git show main:경로` 로 채움). 세션이 바뀌면 틀은 docs/ko/05-github-ci.html 을 직접 고친다
 - 06장: Strapi `config/plugins.ts`(S3 upload provider), `config/middlewares.ts`(CSP 에 이미지 도메인), 운영 토큰은 운영 Strapi 에서 따로 발급→Secrets Manager, 첫 관리자 등록은 배포 직후 바로(선점 위험)
 - 회사 환경 인수 목록: CDK bootstrap 1회, GitHub OIDC Provider 계정당 1개, VPC/EIP 한도, Docker Desktop 라이선스, GitHub 플랜별 기능
 

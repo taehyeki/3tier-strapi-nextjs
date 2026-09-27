@@ -29,6 +29,8 @@ h3 { font-size: 17px; margin: 28px 0 8px; }
 .ok::before { content: "✔ 성공하면 "; color: var(--ok); font-weight: 700; }
 .note { border: 1px dashed var(--warn); border-radius: 8px; padding: 10px 14px; margin: 16px 0; }
 .note::before { content: "주의 · "; color: var(--warn); font-weight: 700; }
+.plan { border: 1px solid var(--line); background: var(--code); border-radius: 8px; padding: 6px 12px; margin: 8px 0 16px; font-size: 13.5px; }
+.plan::before { content: "필요 플랜 · "; font-weight: 700; }
 figure { margin: 16px 0 24px; }
 figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 10px; display: block; }
 figcaption { font-size: 13.5px; color: var(--muted); margin-top: 6px; }
