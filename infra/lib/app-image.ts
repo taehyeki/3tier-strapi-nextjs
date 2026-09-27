@@ -1,40 +1,22 @@
-import * as fs from "node:fs";
-import * as path from "node:path";
-import { Platform } from "aws-cdk-lib/aws-ecr-assets";
+import * as ecr from "aws-cdk-lib/aws-ecr";
 import * as ecs from "aws-cdk-lib/aws-ecs";
-
-const repoRoot = path.join(__dirname, "..", "..");
-const keepAtRoot = [
-  "package.json",
-  "pnpm-lock.yaml",
-  "pnpm-workspace.yaml",
-  "apps",
-];
+import type { Construct } from "constructs";
+import { type AppName, imageRepositoryName } from "./shared";
 
 /**
- * 앱의 Dockerfile(apps/<app>/Dockerfile)로 ARM64 이미지를 만든다.
- * cdk deploy 가 빌드 → ECR 에 올림 → ECS 가 그 이미지를 쓰도록 연결까지 해 준다.
- *
- * 빌드 범위는 저장소 루트(lockfile 이 루트에 있으므로)지만, 넣는 것은 루트의 패키지 파일 3개 + 그 앱의 폴더뿐.
- * 나머지는 실제 목록을 읽어 모두 제외한다 → 문서·설정·다른 앱이 바뀌어도 이미지가 다시 만들어지지(= 재배포되지) 않는다
+ * 앱의 컨테이너 이미지. CI(deploy.yml 의 publish job)가 빌드·검사해서 ECR 에 올린 것을 태그(커밋 SHA)로 가리킨다.
+ * cdk deploy 는 이미지를 빌드하지 않는다 → 검사를 통과한 그 이미지가 그대로 운영에서 돈다.
+ * ECS 가 ECR 에서 이미지를 받아 갈 권한(작업 실행 역할)은 CDK 가 자동으로 붙인다
  */
-export function appImage(app: "web" | "cms"): ecs.ContainerImage {
-  return ecs.ContainerImage.fromAsset(repoRoot, {
-    file: `apps/${app}/Dockerfile`,
-    platform: Platform.LINUX_ARM64, // Fargate 를 Graviton(ARM)으로 실행 (같은 성능에 더 저렴)
-    exclude: [
-      ...fs.readdirSync(repoRoot).filter((name) => !keepAtRoot.includes(name)),
-      ...fs
-        .readdirSync(path.join(repoRoot, "apps"))
-        .filter((name) => name !== app)
-        .map((name) => `apps/${name}`),
-      // 앱 폴더 안에서도 PC 에서 만든 것·시크릿은 넣지 않는다
-      "**/node_modules",
-      "**/.next",
-      "**/dist",
-      "**/.strapi",
-      "**/.env*",
-      "apps/cms/public/uploads",
-    ],
-  });
+export function appImage(
+  scope: Construct,
+  app: AppName,
+  tag: string,
+): ecs.ContainerImage {
+  const repository = ecr.Repository.fromRepositoryName(
+    scope,
+    "Images",
+    imageRepositoryName(app),
+  );
+  return ecs.ContainerImage.fromEcrRepository(repository, tag);
 }

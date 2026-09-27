@@ -2,7 +2,8 @@ import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import type * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
-import type * as s3 from "aws-cdk-lib/aws-s3";
+import * as s3 from "aws-cdk-lib/aws-s3";
+import * as cdk from "aws-cdk-lib/core";
 import * as cr from "aws-cdk-lib/custom-resources";
 import { Construct } from "constructs";
 
@@ -54,8 +55,13 @@ export class Cdn extends Construct {
       additionalBehaviors: {
         "/uploads/*": {
           // OAC: 버킷은 비공개로 두고, 이 CloudFront 만 서명된 요청으로 읽을 수 있게 한다
+          // 버킷 정책은 데이터 스택이 직접 쓴다(media-bucket.ts). 여기서는 참조만 넘겨 정책을 건드리지 않게 한다
           origin: origins.S3BucketOrigin.withOriginAccessControl(
-            props.mediaBucket,
+            s3.Bucket.fromBucketAttributes(this, "MediaRef", {
+              bucketName: props.mediaBucket.bucketName,
+              bucketRegionalDomainName:
+                props.mediaBucket.bucketRegionalDomainName,
+            }),
           ),
           viewerProtocolPolicy:
             cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -66,6 +72,12 @@ export class Cdn extends Construct {
         },
       },
     });
+
+    // 위에서 참조만 넘긴 버킷에 대해 CDK 가 "정책을 직접 고쳐라"라고 경고한다 → media-bucket.ts 에서 고쳤으므로 확인 처리
+    cdk.Annotations.of(this).acknowledgeWarning(
+      "@aws-cdk/aws-cloudfront-origins:updateImportedBucketPolicyOac",
+      "bucket policy for OAC is written in the data stack (media-bucket.ts)",
+    );
 
     this.admin = new cloudfront.Distribution(this, "Admin", {
       comment: "admin (Strapi)",

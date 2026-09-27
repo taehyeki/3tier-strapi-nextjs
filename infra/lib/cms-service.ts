@@ -24,6 +24,8 @@ export class CmsService extends Construct {
     id: string,
     props: {
       cluster: ecs.ICluster;
+      /** 운영에 올릴 이미지의 태그 (커밋 SHA) */
+      imageTag: string;
       listener: elbv2.ApplicationListener;
       database: Database;
       secrets: AppSecrets;
@@ -46,7 +48,7 @@ export class CmsService extends Construct {
       },
     });
     task.addContainer("cms", {
-      image: appImage("cms"),
+      image: appImage(this, "cms", props.imageTag),
       portMappings: [{ containerPort: 1337 }],
       environment: {
         DATABASE_CLIENT: "postgres",
@@ -89,7 +91,18 @@ export class CmsService extends Construct {
       healthCheckGracePeriod: cdk.Duration.minutes(3), // Strapi 는 첫 기동(테이블 생성)이 느리다
     });
 
-    props.database.cluster.connections.allowDefaultPortFrom(this.service); // cms → DB(5432)
+    // cms → DB(5432) 허용. DB 의 보안 그룹은 데이터 스택에 있으므로, 규칙은 이 스택에 만든다
+    // (데이터 스택 쪽에 만들면 데이터 → 앱 참조가 생겨 두 스택이 서로를 기다리는 순환이 된다)
+    const dbConnections = props.database.cluster.connections;
+    ec2.SecurityGroup.fromSecurityGroupId(
+      this,
+      "DbSecurityGroup",
+      dbConnections.securityGroups[0].securityGroupId,
+    ).addIngressRule(
+      this.service.connections.securityGroups[0],
+      dbConnections.defaultPort as ec2.Port,
+      "from cms",
+    );
     props.listener.addTargets("Cms", {
       port: 1337,
       protocol: elbv2.ApplicationProtocol.HTTP,

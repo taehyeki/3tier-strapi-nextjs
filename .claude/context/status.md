@@ -19,7 +19,7 @@
 | 03 데이터·API | docs/ko/03-data-and-api.html | 완료 (403/401/200 토큰 원리) |
 | 04 Next.js | docs/ko/04-nextjs-page.html | 완료 (타입 자동 생성, 화면은 "받은 값이 어디에 나오나"를 부분 코드+부분 스크린샷으로) |
 | 05 GitHub·CI | docs/ko/05-github-ci.html | 한국어 2차안(참고 자료 형식으로 축약, 담당자 검토 대기, PR #2). PR #1 squash 머지(58d6e5a), Ruleset·머지 방식 설정 완료, main CI 통과 |
-| 06 배포(CD) | - | **다음 작업**: CDK 인프라 + 배포 워크플로(main 머지 → environment production 승인 → cdk deploy) + 첫 배포 + 운영 초기 설정(관리자 등록·데이터·토큰) |
+| 06 배포(CD) | - | **진행 중(PR #3)**: 스택 3개 재설계 완료, 토대 스택 배포·GitHub 시크릿 등록 완료 → 머지 → 첫 배포 → 운영 초기 설정(관리자 등록·데이터·토큰) → 01~06장 문서 정리 |
 | 07 변경을 운영까지 | - | 마무리 장(예정): 작은 변경(예: 토핑에 필드 추가 → 타입 재생성 → 화면) → PR → CI → 머지 → CD → 운영 화면에서 반영 확인 |
 | 01~04 정리 | - | 나중에 한꺼번에: 참고 자료 형식(핵심·발췌 + "전체: 경로")으로 축약 (담당자 지시, 2026-09-27) |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
@@ -37,8 +37,9 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - 타입: `pnpm gen:types` = Strapi OpenAPI(experimental) → openapi-typescript → `apps/web/src/types/strapi.d.ts`(커밋). 스키마 변경 시 재실행
 - 이미지: `next/image` + `unoptimized` (Next 16 은 localhost 이미지 최적화를 기본 거부)
 - AWS(06장): 도쿄, VPC+NAT1, Aurora Serverless v2 PostgreSQL, ECS Fargate(web/cms) + 내부 ALB + CloudFront VPC Origin ×2(도메인 없음), S3 미디어, Secrets Manager, prod 1환경
-- 배포: GitHub Actions 에서만 `cdk deploy`(ContainerImage.fromAsset, 변경 경로가 있을 때만). 최초 bootstrap·OIDC 역할만 로컬
-- CI: Biome, typecheck, build, gitleaks, Docker 빌드, Trivy + lefthook(커밋 전). GitHub: Ruleset, Environment `production` 승인, Secret scanning (public 저장소, 회사 플랜에서 안 되면 생략 가능하게 표기)
+- 배포: main 머지 → deploy.yml `publish (web/cms)`(빌드·Trivy·ECR push, 태그=커밋 SHA) → `deploy`(3tier-prod 환경, `cdk deploy --all -c imageTag=SHA`, 빌드 안 함). 로컬은 bootstrap·토대 스택(`pnpm -F infra foundation deploy -c githubRepository=<owner/repo> --profile mfa`)만
+- AWS 상태(2026-09-27): CDKToolkit, ThreeTierFoundation(ECR 3tier/web·3tier/cms, ImagePushRole, DeployRole) 배포됨. 옛 ThreeTierGithubOidc 삭제. GitHub 시크릿: 저장소 `AWS_IMAGE_PUSH_ROLE_ARN`, 환경 3tier-prod `AWS_DEPLOY_ROLE_ARN`
+- CI: Biome, typecheck, build, gitleaks, Docker 빌드, Trivy + lefthook(커밋 전). GitHub: Ruleset, Environment `3tier-prod`(승인자는 보류 — decisions.md), Secret scanning (public 저장소, 회사 플랜에서 안 되면 생략 가능하게 표기)
 
 ## 검증 방법 (문서 ↔ 저장소 일치)
 

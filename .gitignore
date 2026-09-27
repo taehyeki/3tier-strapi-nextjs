@@ -11,6 +11,9 @@ out/
 # CDK
 infra/cdk.out/
 infra/cdk-outputs.json
+infra/cdk.out.foundation/
+# CDK 의 조회 결과 캐시. 계정 ID 가 들어가므로 public 저장소에 올리지 않는다 (조회가 필요 없게 짰다)
+infra/cdk.context.json
 cdk.context.json.bak
 
 # 환경변수 (절대 커밋하지 않는다. 예시는 .env.example 로)

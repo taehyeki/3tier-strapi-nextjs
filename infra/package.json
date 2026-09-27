@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "cdk": "cdk",
+    "foundation": "cdk --app \"tsx bin/foundation.ts\" --output cdk.out.foundation",
     "typecheck": "tsc"
   },
   "dependencies": {

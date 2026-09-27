@@ -1,4 +1,5 @@
 import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as cdk from "aws-cdk-lib/core";
 import { Construct } from "constructs";
 
 /**
@@ -13,8 +14,11 @@ export class Network extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
 
+    const { region } = cdk.Stack.of(this);
     this.vpc = new ec2.Vpc(this, "Vpc", {
-      maxAzs: 2, // ALB 는 AZ 2개 이상이 필요
+      // ALB 는 AZ 2개 이상이 필요. 코드에 적어 두면 CDK 가 AWS 에 AZ 목록을 묻지 않는다
+      // (물으면 계정 ID 가 들어간 cdk.context.json 이 생긴다). 도쿄의 AZ 는 a·c·d
+      availabilityZones: [`${region}a`, `${region}c`],
       natGateways: 1, // 비용을 줄이기 위해 1개 (연수용)
       subnetConfiguration: [
         { name: "public", subnetType: ec2.SubnetType.PUBLIC },

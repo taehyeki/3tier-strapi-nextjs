@@ -20,6 +20,8 @@ export class WebService extends Construct {
     id: string,
     props: {
       cluster: ecs.ICluster;
+      /** 운영에 올릴 이미지의 태그 (커밋 SHA) */
+      imageTag: string;
       alb: elbv2.IApplicationLoadBalancer;
       listener: elbv2.ApplicationListener;
       apiToken: secretsmanager.ISecret;
@@ -36,7 +38,7 @@ export class WebService extends Construct {
       },
     });
     task.addContainer("web", {
-      image: appImage("web"),
+      image: appImage(this, "web", props.imageTag),
       portMappings: [{ containerPort: 3000 }],
       environment: {
         // web → cms 는 VPC 안에서 내부 ALB 의 1337 로 (서버끼리의 통신이라 브라우저·CORS 와 무관)

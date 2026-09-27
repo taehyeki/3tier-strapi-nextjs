@@ -1,49 +1,45 @@
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as cdk from "aws-cdk-lib/core";
 import type { Construct } from "constructs";
-import { AppSecrets } from "./app-secrets";
 import { Cdn } from "./cdn";
 import { CmsService } from "./cms-service";
-import { Database } from "./database";
+import type { DataStack } from "./data-stack";
 import { LoadBalancer } from "./load-balancer";
-import { MediaBucket } from "./media-bucket";
-import { Network } from "./network";
 import { WebService } from "./web-service";
 
 /**
- * 3층 구성 전체를 조립한다. 각 층의 내용은 같은 폴더의 파일에 있다.
+ * 앱 스택: 상태가 없는 것(지우고 다시 만들어도 되는 것). 배포할 때마다 바뀌는 쪽.
  *   1층(입구): cdn.ts(CloudFront ×2) → load-balancer.ts(내부 ALB)
- *   2층(앱)  : web-service.ts(Next.js) / cms-service.ts(Strapi)
- *   3층(저장): database.ts(Aurora) / media-bucket.ts(S3)
- *   공통     : network.ts(VPC) / app-secrets.ts(Secrets Manager) / app-image.ts(Docker 이미지)
+ *   2층(앱)  : web-service.ts(Next.js) / cms-service.ts(Strapi). 이미지는 CI 가 ECR 에 올린 것(app-image.ts)
+ * 3층(DB·사진)과 VPC·시크릿은 데이터 스택(data-stack.ts)에서 받는다
  */
 export class AppStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(
+    scope: Construct,
+    id: string,
+    props: cdk.StackProps & { data: DataStack; imageTag: string },
+  ) {
     super(scope, id, props);
+    const { vpc, database, mediaBucket, secrets } = props.data;
+    const { imageTag } = props;
 
-    const { vpc } = new Network(this, "Network");
-    const database = new Database(this, "Database", { vpc });
-    const media = new MediaBucket(this, "Media");
-    const secrets = new AppSecrets(this, "Secrets");
     const lb = new LoadBalancer(this, "LoadBalancer", { vpc });
-    const cdn = new Cdn(this, "Cdn", {
-      vpc,
-      alb: lb.alb,
-      mediaBucket: media.bucket,
-    });
+    const cdn = new Cdn(this, "Cdn", { vpc, alb: lb.alb, mediaBucket });
 
     const cluster = new ecs.Cluster(this, "Cluster", { vpc });
     new CmsService(this, "Cms", {
       cluster,
+      imageTag,
       listener: lb.cmsListener,
       database,
       secrets,
-      mediaBucket: media.bucket,
+      mediaBucket,
       adminDomain: cdn.admin.distributionDomainName,
       siteDomain: cdn.site.distributionDomainName,
     });
     const web = new WebService(this, "Web", {
       cluster,
+      imageTag,
       alb: lb.alb,
       listener: lb.webListener,
       apiToken: secrets.apiToken,
@@ -55,9 +51,6 @@ export class AppStack extends cdk.Stack {
     });
     new cdk.CfnOutput(this, "AdminUrl", {
       value: `https://${cdn.admin.distributionDomainName}/admin`,
-    });
-    new cdk.CfnOutput(this, "ApiTokenSecretName", {
-      value: secrets.apiToken.secretName,
     });
     new cdk.CfnOutput(this, "ClusterName", { value: cluster.clusterName });
     new cdk.CfnOutput(this, "WebServiceName", {

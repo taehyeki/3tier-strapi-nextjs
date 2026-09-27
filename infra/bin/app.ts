@@ -1,31 +1,23 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib/core";
 import { AppStack } from "../lib/app-stack";
-import { GithubOidcStack } from "../lib/github-oidc-stack";
+import { DataStack } from "../lib/data-stack";
+import { regionOf } from "../lib/shared";
 
+// 서비스 앱 (데이터 스택 + 앱 스택). GitHub Actions 의 deploy 워크플로가 배포한다:
+//   cdk deploy --all -c imageTag=<커밋 SHA>   (Data → App 순서는 CDK 가 지킨다)
+// 토대(ECR·IAM 역할)는 별도 앱 bin/foundation.ts
 const app = new cdk.App();
+const env = { region: regionOf(app) };
 
-// 계정은 실행하는 자격 증명에서 가져온다(코드에 계정 ID 를 적지 않는다).
-// 리전은 도쿄로 고정한다(실행 환경에 따라 바뀌지 않게). 다른 리전은 -c region=<리전>
-const env = {
-  account: process.env.CDK_DEFAULT_ACCOUNT,
-  region: app.node.tryGetContext("region") ?? "ap-northeast-1",
-};
-
-// 앱 전체 (GitHub Actions 의 deploy 워크플로가 배포)
-new AppStack(app, "ThreeTierApp", { env });
-
-// GitHub Actions 용 IAM 역할 (담당자가 로컬에서 1회만 배포). 저장소 이름은 코드에 적지 않고 실행할 때 넘긴다:
-//   pnpm -F infra cdk deploy ThreeTierGithubOidc -c githubRepository=<owner/repo> -c githubEnvironment=<환경 이름>
-const githubRepository = app.node.tryGetContext("githubRepository");
-const githubEnvironment = app.node.tryGetContext("githubEnvironment");
-if (githubRepository && githubEnvironment) {
-  new GithubOidcStack(app, "ThreeTierGithubOidc", {
-    env,
-    githubRepository,
-    githubEnvironment,
-    useExistingOidcProvider:
-      app.node.tryGetContext("useExistingOidcProvider") !== "false",
-    cdkQualifier: app.node.tryGetContext("cdkQualifier") ?? "hnb659fds",
-  });
+// 운영에 올릴 이미지의 태그. CI 가 ECR 에 올린 이미지(태그 = 커밋 SHA)를 가리킨다
+const imageTag = app.node.tryGetContext("imageTag");
+if (!imageTag) {
+  throw new Error("-c imageTag=<이미지 태그(커밋 SHA)> 를 지정하세요");
 }
+
+const data = new DataStack(app, "ThreeTierData", {
+  env,
+  terminationProtection: true, // DB·사진이 있으므로 실수로 스택을 지우지 못하게 한다
+});
+new AppStack(app, "ThreeTierApp", { env, data, imageTag });
