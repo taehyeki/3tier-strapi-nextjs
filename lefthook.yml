@@ -1,0 +1,19 @@
+# git commit の直前に自動で実行される検査(lefthook)
+# 問題があるとコミットが作られない。同じ検査を GitHub Actions(CI)でももう一度行う。
+pre-commit:
+  piped: true # 上から順番に実行する(型を作ったあとにそのファイルも検査するように)
+  jobs:
+    # Strapi のスキーマ(schema.json など)を変えたコミットなら、web が使う型を作り直して一緒にコミットする(pnpm gen:types を自動で)
+    # Strapi を一瞬立ち上げて作るので、DB(pnpm dev:db)が起動している必要がある
+    - name: gen-types
+      glob: "apps/cms/src/**/*.json"
+      run: pnpm gen:types && git add apps/web/src/types
+      fail_text: "型の生成に失敗しました。DB が起動しているか確認してください (pnpm dev:db)"
+    # コードの形の自動修正 + よくあるミスの検出。直したファイルは自動で再度ステージする
+    - name: biome
+      glob: "*.{js,ts,cjs,mjs,jsx,tsx,json,jsonc,css}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched --files-ignore-unknown=true {staged_files}
+      stage_fixed: true
+    # パスワード・トークンのようなシークレットがコミットに入っていないか検査(Docker で実行するので別途インストール不要)
+    - name: gitleaks
+      run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --pre-commit --staged --redact --verbose /repo

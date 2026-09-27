@@ -1,0 +1,11 @@
+# Docker のビルドに送らないファイル
+# PC で作ったインストール・ビルド結果が混ざらないように、シークレット(.env)とローカルのアップロードファイルがイメージに入らないようにする
+**/node_modules
+**/.next
+**/dist
+**/.strapi
+**/.env
+**/.env.*
+!**/.env.example
+apps/cms/public/uploads/*
+.git

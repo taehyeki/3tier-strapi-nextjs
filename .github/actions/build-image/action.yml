@@ -1,0 +1,73 @@
+# アプリの Docker イメージをビルドし、Trivy で脆弱性を検査する(composite action = 複数の手順をまとめた「このリポジトリ専用のアクション」)
+# ci.yml(PR の検査)と deploy.yml(デプロイ用イメージ)が同じ手順を使うよう、ここに一度だけ書く。
+# 修正可能な HIGH・CRITICAL の脆弱性があれば失敗する。イメージはランナーの Docker に残る(push は呼び出す側が行う)
+# 呼び出す job に必要な権限: contents: read, security-events: write(検査結果を Security タブに上げるため)
+name: Build and scan image
+description: Build apps/<app>/Dockerfile and scan it with Trivy
+
+inputs:
+  app:
+    description: "アプリ名 (web / cms)"
+    required: true
+  image:
+    description: "ビルドしたイメージに付ける名前:タグ"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    # このアクションは既定で Summary に「Docker Build summary」(キャッシュのヒット率など)を付け、ビルド記録ファイルを Artifacts に上げる
+    - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      with:
+        context: .
+        file: apps/${{ inputs.app }}/Dockerfile
+        tags: ${{ inputs.image }}
+        load: true # このランナーの Docker に入れる(検査するため。ここでは push しない)
+        cache-from: type=gha,scope=${{ inputs.app }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.app }}
+    # ① 結果を SARIF ファイルにして Security タブに上げる
+    #    (private リポジトリで GitHub Advanced Security がなければ、この2ステップは削除してよい)
+    - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      with:
+        version: v0.74.0
+        image-ref: ${{ inputs.image }}
+        scanners: vuln
+        ignore-unfixed: true
+        severity: HIGH,CRITICAL
+        limit-severities-for-sarif: true
+        format: sarif
+        output: trivy-${{ inputs.app }}.sarif
+    - uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+      if: always()
+      with:
+        sarif_file: trivy-${{ inputs.app }}.sarif
+        category: trivy-${{ inputs.app }}
+    # ② 修正可能な HIGH・CRITICAL の脆弱性があれば失敗させる(PR ではマージを、main ではデプロイを止める関門)
+    - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+      env:
+        TRIVY_TABLE_MODE: detailed # 検査したファイル数百個の要約表は省き、見つかった脆弱性の表だけ
+      with:
+        version: v0.74.0
+        image-ref: ${{ inputs.image }}
+        scanners: vuln
+        ignore-unfixed: true
+        severity: HIGH,CRITICAL
+        format: table
+        output: trivy-${{ inputs.app }}.txt
+        exit-code: "1"
+        skip-setup-trivy: true
+    # ②の結果の表を、実行画面の Summary に貼る(ログを探さなくてもすぐ見えるように)
+    - if: always()
+      shell: bash
+      env:
+        APP: ${{ inputs.app }}
+      run: |
+        {
+          echo "### Trivy: ${APP}(修正可能な HIGH・CRITICAL)"
+          echo '```'
+          if [ ! -f "trivy-${APP}.txt" ]; then echo "(検査前に失敗)"
+          elif grep -q 'Total: [1-9]' "trivy-${APP}.txt"; then cat "trivy-${APP}.txt"
+          else echo "なし"; fi
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"

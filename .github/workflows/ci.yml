@@ -1,0 +1,70 @@
+# PR でマージする前に自動で実行される検査(CI)。4つの job がすべて通らないとマージできない(Ruleset)
+# main にマージされたあとのビルド・検査・デプロイは deploy.yml
+# アクションはタグ(v1 など)ではなくコミット SHA で固定する。タグはあとで別のコードに差し替えられることがあるため(2026年の Trivy 事件)。
+name: CI
+
+on:
+  pull_request:
+
+# 同じブランチに新しいコミットが来たら、それ以前の実行は取り消す
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# 既定の権限は「読み取り」のみ。必要な job にだけ追加する(最小権限)
+permissions:
+  contents: read
+
+jobs:
+  # コードの形・ミス(Biome)と型検査
+  check:
+    # ランナーの OS はバージョンを固定する(ubuntu-latest は 2026-10-19 から Ubuntu 26 に変わる。上げるときは人が決める)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # package.json の pnpm バージョン、.nvmrc の Node バージョンを読んでインストールし、pnpm install まで行う
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          cache: true
+          require-lockfile: true
+      - run: pnpm exec biome ci
+      - run: pnpm typecheck
+      # インフラコード(CDK)が CloudFormation テンプレートに変換できるか確認(AWS には接続しない)
+      - run: pnpm -F infra exec cdk synth --quiet -c imageTag=check
+      - run: pnpm -F infra foundation synth --quiet -c githubSubjectPrefix="repo:$GITHUB_REPOSITORY"
+
+  # シークレット(パスワード・トークン)がコミット履歴に入っていないか
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # 履歴全体を検査するため
+          persist-credentials: false
+      - run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.30.1 git --redact --verbose /repo
+
+  # 本番と同じ Docker イメージをビルドし、イメージの中の既知の脆弱性を検査する(検査だけ。どこにも上げない)
+  image:
+    # 本番(Fargate ARM64)と同じ CPU のランナーでビルドし、本番と同じ種類のイメージを検査する
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write # 検査結果を Security タブに上げるため
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, cms]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # ビルド → Trivy 検査(手順は .github/actions/build-image/action.yml。deploy.yml も同じものを使う)
+      - uses: ./.github/actions/build-image
+        with:
+          app: ${{ matrix.app }}
+          image: ${{ matrix.app }}:ci
