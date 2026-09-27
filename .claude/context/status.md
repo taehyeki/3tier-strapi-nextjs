@@ -20,7 +20,7 @@
 | 04 Next.js | docs/ko/04-nextjs-page.html | 축약: menu.ts 발췌를 getShop 만으로 |
 | 05 GitHub·CI | docs/ko/05-github-ci.html | PR 전용 CI·공용 빌드 액션(.github/actions/build-image)에 맞춰 갱신 |
 | 06 배포(CD) | docs/ko/06-deploy.html | **초안 완료**(스크린샷 3장: deploy 실행·운영 관리자 등록 화면·운영 사이트). 틀·빌드 스크립트 `.claude/doc-src/` |
-| 07 변경을 운영까지 | - | **다음 작업**: 작은 변경(예: 토핑에 필드 추가 → 타입 재생성 → 화면) → PR → CI → 머지 → CD → 운영 확인 |
+| 07 변경을 운영까지 | docs/ko/07-change-to-production.html | **초안**: Extra 에 soldOut(품절) 추가 → PR #6 머지(1d49d31) → 자동 배포 성공(약 10분). 남은 것: 운영 관리자 화면에서 チャーシュー 품절 켜기(담당자) → `after-prod.png` 캡처 → 빌드. 틀 `.claude/doc-src/07.src.html` |
 | 일본어 번역 | docs/ja/ | 담당자 승인 후 |
 
 장별 커밋 (pnpm 12 로 재작성 → 2026-09-27 메시지 일본어화. 이전: `backup/pre-pnpm12`, `backup/pre-ja-msg`):
@@ -58,7 +58,7 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - GitHub 저장소 설정 변경은 Claude Code auto mode 분류기에 막힐 수 있음 → 담당자가 조작, Claude 는 읽기 전용 캡처·API 확인
 - GitHub 캡처는 페이지 안에서 아바타(img[src*=avatars])와 사용자명 텍스트에 CSS blur 를 건 뒤 찍는다. 문서 이미지: docs/assets/img/github/
 - 문서 생성: scratchpad 의 05.src.html 틀 + build05.py(`{{FILE:경로}}`·`{{EXCERPT:경로:시작:끝}}` 를 `git show main:경로` 로 채움). 세션이 바뀌면 틀은 docs/ko/05-github-ci.html 을 직접 고친다
-- 06장: `.claude/doc-src/06.src.html` 틀의 `{{EX:경로:시작:끝}}`(작업 트리 파일의 줄 발췌)·`{{IMG:파일|설명}}` 을 `python3 .claude/doc-src/build06.py .claude/doc-src/06.src.html docs/ko/06-deploy.html` 로 채운다. 코드 줄 번호가 바뀌면 틀의 번호를 고친다
+- 06·07장: `.claude/doc-src/0N.src.html` 틀의 `{{EX:경로:시작:끝}}`(작업 트리 파일의 줄 발췌)·`{{IMG:파일|설명}}` 을 `python3 .claude/doc-src/build_doc.py .claude/doc-src/06.src.html docs/ko/06-deploy.html deploy` 로 채운다. 코드 줄 번호가 바뀌면 틀의 번호를 고친다
 - 06장: Strapi `config/plugins.ts`(S3 upload provider), `config/middlewares.ts`(CSP 에 이미지 도메인), 운영 토큰은 운영 Strapi 에서 따로 발급→Secrets Manager, 첫 관리자 등록은 배포 직후 바로(선점 위험)
 - 회사 환경 인수 목록: CDK bootstrap 1회, GitHub OIDC Provider 계정당 1개, VPC/EIP 한도, Docker Desktop 라이선스, GitHub 플랜별 기능
 
@@ -71,6 +71,9 @@ main 은 push 완료. 05장 코드 = `58d6e5a ci: lefthook・Dockerfile・GitHub
 - 각 장 끝에 커밋 단계 (Conventional Commits)
 - 요점에서 벗어난 내용·중복 금지, 스크린샷은 대표 1장, 파일이 바뀌면 📁 상태
 - 문서의 코드는 저장소 파일에서 직접 읽어 넣고, 명령은 실제로 실행해 검증
+
+- **로컬 `strapi develop` 을 켠 채 브랜치를 바꾸지 않는다**: 개발 모드 Strapi 가 다른 브랜치의 스키마로 DB 를 맞추며 열을 지운다(2026-09-27 sold_out 열·값 소실 실제 발생). 브랜치 전환 전에 Strapi 를 멈춘다
+- 스키마에 필드를 추가하면 기존 행의 값은 NULL(기본값은 새 데이터에만). 생성 타입은 `boolean | null`
 
 ## 세션 재개 시 확인
 
