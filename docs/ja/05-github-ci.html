@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 GitHub と CI</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 05 · <span class="tier ops">CI/CD</span></div>
+  <h1>CI: 検査を通過したコードだけを main に入れる</h1>
+  <p class="lead">コードを変えるたびに<strong>機械が自動で検査(CI)</strong>し、通過したコードだけ main に取り込まれるようにします。06章の自動デプロイはこの main を基準に動くので、ここで止めた問題は本番に行きません。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li class="on"><span>05 CI</span></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal">PR を作ると検査が自動で走り、すべて通過しないと main にマージできないリポジトリを作る。</p>
+
+<h2>1. CI とは</h2>
+<p><strong>CI(Continuous Integration、継続的インテグレーション)</strong>は、変更を main に取り込む<strong>前に</strong>、決まった検査を<strong>人ではなく機械が毎回同じ方法で</strong>実行することです。</p>
+<div class="analogy">新メニューを店に出す前に、毎回同じチェックリストで検品するのと同じです。「味は見たはず」と信じる代わりに、チェックリストを通過したものだけをメニューに載せます。</div>
+<table>
+<tr><th>この章でやること</th><th>やらないこと(必要なら追加)</th></tr>
+<tr><td>コードの形・よくあるミス、型、秘密の値の漏えい、本番用イメージのビルド、イメージの脆弱性</td><td>自動テスト(単体・画面操作)、性能測定など。この例は読み取りだけの単純な画面なので入れていません</td></tr>
+</table>
+
+<h2>2. GitHub に上げて最初の PR を作る</h2>
+<p>GitHub で<strong>空のリポジトリ</strong>を作り(README などは追加しない)、01〜04章のコミットを上げます。それ以降はブランチを作って PR で取り込みます。</p>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>git remote add origin https://github.com/&lt;owner&gt;/&lt;repo&gt;.git
+git push -u origin main              # 01〜04章のコミット(main の保護を有効にする前に)
+
+git switch -c ci/setup               # この章の作業はブランチで
+# … 3〜5節のファイルを追加 …
+git add . &amp;&amp; git commit -m "ci: lefthook・Dockerfile・GitHub Actions の CI を追加"
+git push -u origin ci/setup          # → GitHub の画面で「Compare &amp; pull request」から PR を作成</code></pre>
+<p>PR を作ると、CI が初めて動きます。一度動いたあとで、7節のリポジトリ設定(main の保護)を有効にします。検査名が一度登録されないと、必須検査として選べないためです。</p>
+
+<h2>3. 3重の検査</h2>
+<p>作業は main ではなく<strong>ブランチ</strong>(作業用のコピー)で行い、<strong>PR</strong>(Pull Request、「この変更を main に取り込んでください」という申請)でまとめます。</p>
+<figure>
+<svg viewBox="0 0 860 200" width="100%" role="img" aria-label="3重の検査">
+  <style>.b{fill:var(--card);stroke:var(--line);stroke-width:1.5}.a{fill:none;stroke:var(--accent,#c2410c);stroke-width:2;marker-end:url(#m5)}.t{fill:var(--fg);font-size:14px;font-weight:700}.s{fill:var(--muted);font-size:12px}</style>
+  <defs><marker id="m5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#c2410c)"/></marker></defs>
+  <rect class="b" x="10" y="20" width="190" height="140" rx="12"/>
+  <text class="t" x="24" y="46">① 自分の PC(コミット直前)</text>
+  <text class="s" x="24" y="72">lefthook</text>
+  <text class="s" x="24" y="92">・コードの形・ミス(Biome)</text>
+  <text class="s" x="24" y="112">・シークレット(gitleaks)</text>
+  <text class="s" x="24" y="142">数秒・飛ばすこともできる</text>
+  <path class="a" d="M200,90 L240,90"/>
+  <rect class="b" x="240" y="20" width="190" height="140" rx="12"/>
+  <text class="t" x="254" y="46">② GitHub(push の瞬間)</text>
+  <text class="s" x="254" y="72">Push protection</text>
+  <text class="s" x="254" y="92">既知のトークン形式なら</text>
+  <text class="s" x="254" y="112">push 自体を拒否</text>
+  <text class="s" x="254" y="142">GitHub の機能</text>
+  <path class="a" d="M430,90 L470,90"/>
+  <rect class="b" x="470" y="20" width="200" height="140" rx="12"/>
+  <text class="t" x="484" y="46">③ CI(PR のたび)</text>
+  <text class="s" x="484" y="72">GitHub Actions</text>
+  <text class="s" x="484" y="92">コード・型・シークレット・</text>
+  <text class="s" x="484" y="112">イメージビルド・脆弱性</text>
+  <text class="s" x="484" y="142">きれいな環境で毎回</text>
+  <path class="a" d="M670,90 L710,90"/>
+  <rect class="b" x="710" y="20" width="140" height="140" rx="12"/>
+  <text class="t" x="724" y="46">Ruleset</text>
+  <text class="s" x="724" y="72">③が全部 ✓</text>
+  <text class="s" x="724" y="92">のときだけマージ</text>
+  <text class="s" x="724" y="122">→ main</text>
+  <text class="s" x="10" y="188">CI は結果(✓/✗)を表示するだけです。「✓でなければマージ禁止」を強制するのはリポジトリ設定(Ruleset)です。2つで1セットです。</text>
+</svg>
+</figure>
+<p>手前ほど早く教えてくれて、奥ほど飛ばせません。だから同じ検査を複数の場所に置きます。</p>
+
+<h2>4. コミット直前: lefthook</h2>
+<p><code>git commit</code> を押した瞬間に、自分の PC で自動的に動く検査です。ルールはリポジトリの <code>lefthook.yml</code> にあり、<code>pnpm install</code> のときに各自の PC にインストールされるので、チーム全員が同じ検査を通ります。</p>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm add -Dw lefthook</code></pre>
+<p>そして <code>pnpm-workspace.yaml</code> の <code>allowBuilds</code> に <code>lefthook: true</code> と書きます。01章で「インストール時のスクリプト実行を禁止する」と説明しましたが、lefthook はインストール時に git へ検査を登録するスクリプトが必要なので、これだけ許可します。</p>
+<table>
+<tr><th>検査</th><th>やること</th></tr>
+<tr><td>gen-types <small>(07章のあとに追加)</small></td><td>Strapi のスキーマファイルがコミットに含まれていれば、画面用の型を作り直して一緒にコミット(04章の <code>pnpm gen:types</code> を自動で。DB が起動している必要がある)</td></tr>
+<tr><td>biome</td><td>コミットするファイルのコードの形を直し、よくあるミスを見つける</td></tr>
+<tr><td>gitleaks</td><td>パスワード・トークンのような文字列があれば<strong>コミット自体を止める</strong></td></tr>
+</table>
+<p>hook は飛ばすこともでき(<code>--no-verify</code>)、インストールしていない人には効きません。だから同じ検査を CI でもう一度行います。<strong>hook は早い通知、CI は強制</strong>です。</p>
+
+<h2>5. PR のたびに: GitHub Actions</h2>
+<p><code>.github/workflows/ci.yml</code> に書いておくと、GitHub が PR のたびに<strong>ランナー</strong>(GitHub が用意する新しい仮想マシン)で検査を実行します。ランナーは毎回新しく作られるので、「自分の PC では動くのに」が通用しません。</p>
+<table>
+<tr><th>検査名</th><th>やること</th><th>防いでくれるもの</th></tr>
+<tr><td><code>check</code></td><td>Biome、型検査、インフラコード(CDK)の変換確認 <small>(CDK は06章で追加)</small></td><td>ミス・タイプミス、自分の PC でしか動かないコード</td></tr>
+<tr><td><code>secrets</code></td><td>gitleaks で<strong>すべてのコミット履歴</strong>を検査</td><td>過去のコミットに混ざった秘密の値</td></tr>
+<tr><td><code>image (web)</code> / <code>image (cms)</code></td><td>本番と同じ Docker イメージをビルドし、Trivy で脆弱性を検査</td><td>壊れたビルド、イメージ内の既知の脆弱性</td></tr>
+</table>
+<details class="opt">
+<summary>ワークフローで守っている2つのセキュリティ原則 <span class="skip">省略可</span></summary>
+<table>
+<tr><th>原則</th><th>なぜ</th></tr>
+<tr><td>他人が作ったアクションはバージョン名(<code>@v7</code>)ではなく<strong>コミット SHA で固定</strong></td><td>バージョン名は別のコードに差し替えられることがあります。2026年3月、実際に有名なアクションが悪意あるコードに差し替えられ、多くの CI で秘密の値が漏えいしました</td></tr>
+<tr><td>CI に与える権限は<strong>既定で読み取りだけ</strong>(<code>permissions: contents: read</code>)。検査結果のアップロードに必要な書き込みだけをその job に追加</td><td>アクションが悪意あるものでも、リポジトリを書き換えられません</td></tr>
+</table>
+</details>
+
+<h2>6. Docker イメージと脆弱性検査</h2>
+<p>06章では画面と CMS を<strong>Docker イメージ</strong>(アプリと実行に必要なものをまとめた箱)として AWS で動かします。CI は PR のたびにそのイメージを同じようにビルドしてみて、中の部品に既知の脆弱性がないか<strong>Trivy</strong>で検査します。レシピは <code>apps/web/Dockerfile</code>、<code>apps/cms/Dockerfile</code> です。</p>
+<div class="cards">
+  <div class="card"><h4>2段階で作る</h4><p>1段階目でインストール・ビルド、2段階目には実行に必要な成果物だけを移す。ビルド道具は本番イメージに入らない</p></div>
+  <div class="card"><h4>不要なものは入れない</h4><p>ないものは攻撃に使われることも、脆弱性として見つかることもない</p></div>
+  <div class="card"><h4>root ではないユーザーで実行</h4><p>コンテナが破られても被害が小さい</p></div>
+  <div class="card"><h4>秘密の値は入れない</h4><p>実行時に環境変数として渡す(06章)。<code>.dockerignore</code> で <code>.env</code> も除外する</p></div>
+</div>
+<figure><img src="../assets/img/github/ci-run-summary.png" alt="CI 実行の Summary"><figcaption>検査名をクリックすると、Summary に Trivy の結果表が出る(この画面は「なし」)</figcaption></figure>
+<details class="opt">
+<summary>脆弱性が見つかったとき <span class="skip">省略可</span></summary>
+<p>イメージには自分で選んでいない部品が数千個入っており、新しい脆弱性は毎日公開されます。この資料を作る際も、最初に何件か見つかりました。対応の順序は、①修正版があれば上げる(<code>pnpm-workspace.yaml</code> の <code>overrides</code>)→②実行に使っていなければイメージから外す→③どちらもできなければ理由と期限を書いて例外にする、です。</p>
+</details>
+<details class="opt">
+<summary>Security タブの Code scanning <span class="skip">省略可</span></summary>
+<p>CI は Trivy の結果を SARIF(検査結果の標準形式)として GitHub に上げます。Code scanning は検査ツールではなく、上がってきた結果を警告一覧として保管し、「いつ発生していつ直ったか」を追跡する機能です。使えないプランなら、結果アップロードの手順だけ外せば構いません。</p>
+</details>
+
+<h2>7. リポジトリ設定: 「通過しないと取り込めないように」</h2>
+<p>CI は結果(✓/✗)を表示するだけです。強制するのはリポジトリ設定です。CI が一度動いたあとで設定します。</p>
+<h3>マージ方式: squash のみ</h3>
+<p><strong>Settings → General → Pull Requests</strong>。PR の中の複数のコミットを、main に<strong>1つのコミット</strong>としてまとめます。PR のタイトルが main のコミットメッセージになるので、履歴がすっきりします。</p>
+<figure><img src="../assets/img/github/merge-settings.png" alt="マージ方式の設定"><figcaption>squash のみ許可、既定のメッセージは PR のタイトルと説明、マージ後にブランチを自動削除</figcaption></figure>
+<h3>Ruleset: main の保護</h3>
+<p><strong>Settings → Rules → Rulesets → New branch ruleset</strong>で main を対象に作ります。</p>
+<table>
+<tr><th>ルール</th><th>効果</th></tr>
+<tr><td>Require a pull request before merging</td><td>main への直接 push を禁止。必ず PR を経由する</td></tr>
+<tr><td><strong>Require status checks to pass</strong></td><td>5節の検査4つが ✓ でないとマージ不可</td></tr>
+<tr><td>Block force pushes / Restrict deletions</td><td>main の履歴の上書き・削除を禁止</td></tr>
+</table>
+<figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset のルール設定"><figcaption>必須検査は CI が一度動いたあと、名前を検索すると候補に出る</figcaption></figure>
+<div class="note">この章の設定は<strong>public リポジトリ</strong>を前提にしています。private リポジトリでは GitHub のプランによって Ruleset、Secret scanning、Code scanning が使えないことがあります。会社のリポジトリで使える機能を先に確認してください。</div>
+
+<h2>8. 結果: PR 画面</h2>
+<figure><img src="../assets/img/github/pr-checks-passed.png" alt="必須チェックの通過"><figcaption>必須検査4つに「Required」が付き、すべて ✓ のときだけ「Squash and merge」を押せる</figcaption></figure>
+<p>これ以降の変更もすべて同じ流れです: <strong>ブランチ → コミット(lefthook)→ push → PR(CI)→ squash マージ</strong>。この章のコミットは PR のタイトルそのままです。</p>
+<pre><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加</code></pre>
+
+<h2>次へ: CI から CD へ</h2>
+<p>CI は「取り込む<strong>前</strong>」の検査でした。<strong>CD</strong> は「取り込まれた<strong>あと</strong>」main を自動で本番に送り出すことです(06章)。</p>
+<div class="flow">
+  <div><b>PR</b><small>CI: 検査</small></div><div class="arr">→</div>
+  <div><b>squash マージ</b><small>main が変わる</small></div><div class="arr">→</div>
+  <div class="hl"><b>CD(06章)</b><small>AWS の本番環境に反映</small></div>
+</div>
+
+<nav class="pager"><a href="04-nextjs-page.html">← 04 画面</a><a href="06-deploy.html">06 CD・デプロイ →</a></nav>
+</main>
+</body>
+</html>

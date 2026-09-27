@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>00 全体構成</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 00</div>
+  <h1>全体構成: 何を、何で作るか</h1>
+  <p class="lead">まず完成した姿と流れを見ます。この章だけ読んでも「いま自分がどこにいるのか」がわかります。</p>
+  <ol class="chmap" aria-label="章マップ"><li class="on"><span>00 全体構成</span></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<h2>1. 今回の研修でやること</h2>
+<p>皆さんはすでに3層アーキテクチャ(Web → アプリ → DB)のインフラを設計しました。今回はその上に載る<strong>アプリケーションを自分で作り、GitHub を通して自動でデプロイ</strong>する流れを体験します。</p>
+<p>例として、キム系ラーメン店<strong>「麺屋ヤマモリ」</strong>のメニューサイトを作ります。店のスタッフが管理画面でメニューと価格を入力すると、お客様が見るサイトにそのまま反映されます。</p>
+<div class="key"><strong>この資料は正解ではなく参考例です。</strong>コードはリポジトリにすべてあるので、資料では流れと要点だけを読み、皆さんが作りたいサイト(テーマ・データ・画面)に置き換えて作ってみてください。ラーメン店のデータや写真は提供しません。<span class="skip">省略可</span>と付いた部分は、知らなくても先に進める補足説明です。</div>
+
+<h2>2. 3層構成をお店にたとえると</h2>
+<p>Web サービスは大きく3つの部分に分かれます。ラーメン店にたとえるとこうなります。</p>
+<div class="flow">
+  <div><span class="tier front">フロントエンド</span><b>ホール(お客様が見る場所)</b>お客様に見せる画面を作る<small>今回の例: Next.js</small></div>
+  <div class="arr">→</div>
+  <div><span class="tier back">バックエンド</span><b>厨房 + 注文窓口</b>データを管理し、決まった窓口(API)から渡す<small>今回の例: Strapi</small></div>
+  <div class="arr">→</div>
+  <div><span class="tier db">DB</span><b>食材倉庫</b>データを長期保管する<small>今回の例: PostgreSQL</small></div>
+</div>
+<div class="analogy">ホールのスタッフ(フロントエンド)は倉庫(DB)に直接入りません。厨房の窓口(API)に「メニュー一覧をください」と注文し、受け取ったものをお客様の前にきれいに並べます。窓口は<strong>通行証(API トークン)</strong>を持つスタッフの注文だけを受け付けます。</div>
+<p>WordPress ではこの3つが1つの塊でした。今回は<strong>画面(Next.js)</strong>と<strong>管理ツール・API(Strapi)</strong>を分けて、両者がどう通信するかを自分の手で作ります。</p>
+<div class="analogy">Strapi は「ヘッドレス CMS」と呼ばれる種類のツールです。データの入れ物(スキーマ)を管理画面でクリックして作るだけで、そのデータを出し入れする API が自動でできます。バックエンドを1からコードで書かなくても、<strong>自分だけの CMS(コンテンツ管理の仕組み)を簡単に組み立てられる</strong>というのがポイントです。Next.js はその API から受け取ったデータを画面にする、React ベースの Web フレームワークです。</div>
+<details class="opt">
+<summary>なぜアプリを2つに分けるのですか? <span class="skip">省略可</span></summary>
+<ul>
+  <li><strong>役割分離</strong>: 画面のデザインを変えても CMS はそのまま、CMS を更新しても画面はそのままにできます。</li>
+  <li><strong>セキュリティ</strong>: API トークンを Next.js サーバーの中だけに置けば、ブラウザからは絶対に見えません。</li>
+  <li><strong>再利用</strong>: 同じ API をスマートフォンアプリや他のサイトでも使えます。この構造を<em>ヘッドレス CMS</em>と呼びます。</li>
+</ul>
+</details>
+
+<h2>3. 完成した姿(AWS)</h2>
+<figure>
+<svg class="dg" viewBox="0 0 980 580" role="img" aria-label="AWS 構成図">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="fill:var(--fg)"/></marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+  </defs>
+  <!-- ユーザー -->
+  <rect class="box" x="10" y="190" width="118" height="70" rx="10"/><text class="t" x="69" y="220" text-anchor="middle">お客様</text><text class="s" x="69" y="240" text-anchor="middle">ブラウザ</text>
+  <rect class="box" x="10" y="330" width="118" height="70" rx="10"/><text class="t" x="69" y="360" text-anchor="middle">店のスタッフ</text><text class="s" x="69" y="380" text-anchor="middle">管理画面</text>
+  <!-- AWS Cloud -->
+  <rect class="grp" x="150" y="14" width="820" height="520" rx="4"/><image href="../assets/aws/AWSCloud.svg" x="150" y="14" width="32" height="32"/><text class="t" x="190" y="35">AWS クラウド(東京リージョン)</text>
+  <!-- CloudFront -->
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="198" width="48" height="48"/><text x="214" y="262" text-anchor="middle" class="s">CloudFront</text><text x="214" y="277" text-anchor="middle" class="s">(サイト用)</text>
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="338" width="48" height="48"/><text x="214" y="402" text-anchor="middle" class="s">CloudFront</text><text x="214" y="417" text-anchor="middle" class="s">(管理者用)</text>
+  <!-- VPC -->
+  <rect class="grp-vpc" x="300" y="56" width="530" height="440" rx="4"/><image href="../assets/aws/VirtualprivatecloudVPC.svg" x="300" y="56" width="32" height="32"/><text class="t" x="340" y="77">VPC(自分専用のネットワーク)</text>
+  <rect class="grp-pri" x="320" y="100" width="320" height="380" rx="4"/><image href="../assets/aws/Privatesubnet.svg" x="320" y="100" width="28" height="28"/><text class="t" x="354" y="119">Private サブネット</text><text class="s" x="354" y="135">インターネットから直接入れない</text>
+  <image href="../assets/aws/ElasticLoadBalancing.svg" x="345" y="268" width="48" height="48"/><text x="369" y="332" text-anchor="middle" class="s">ALB(内部)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="168" width="48" height="48"/><text x="549" y="232" text-anchor="middle" class="t">Next.js</text><text x="549" y="247" text-anchor="middle" class="s">Fargate(画面)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="360" width="48" height="48"/><text x="549" y="424" text-anchor="middle" class="t">Strapi</text><text x="549" y="439" text-anchor="middle" class="s">Fargate(CMS・API)</text>
+  <rect class="grp-iso" x="660" y="300" width="155" height="180" rx="4"/><text class="t" x="672" y="320">Isolated サブネット</text><text class="s" x="672" y="336">アプリからのみアクセス</text>
+  <image href="../assets/aws/AmazonAurora.svg" x="713" y="368" width="48" height="48"/><text x="737" y="432" text-anchor="middle" class="t">Aurora</text><text x="737" y="447" text-anchor="middle" class="s">PostgreSQL</text>
+  <!-- VPC の外 -->
+  <image href="../assets/aws/AmazonSimpleStorageService.svg" x="872" y="120" width="48" height="48"/><text x="896" y="184" text-anchor="middle" class="s">S3(写真)</text>
+  <image href="../assets/aws/AWSSecretsManager.svg" x="872" y="250" width="48" height="48"/><text x="896" y="314" text-anchor="middle" class="s">Secrets</text><text x="896" y="328" text-anchor="middle" class="s">Manager</text>
+  <image href="../assets/aws/AmazonElasticContainerRegistry.svg" x="872" y="390" width="48" height="48"/><text x="896" y="454" text-anchor="middle" class="s">ECR</text><text x="896" y="468" text-anchor="middle" class="s">(アプリのイメージ)</text>
+  <!-- お客様の流れ -->
+  <path class="ar" d="M128 225 H186"/><circle class="num" cx="157" cy="210" r="10"/><text class="num-t" x="157" y="214" text-anchor="middle">1</text>
+  <path class="ar" d="M240 222 C290 222 300 290 341 292"/><circle class="num" cx="290" cy="240" r="10"/><text class="num-t" x="290" y="244" text-anchor="middle">2</text>
+  <path class="ar" d="M395 286 C450 286 470 192 521 192"/><circle class="num" cx="455" cy="222" r="10"/><text class="num-t" x="455" y="226" text-anchor="middle">3</text>
+  <path class="ar" d="M549 252 V356"/><circle class="num" cx="565" cy="300" r="10"/><text class="num-t" x="565" y="304" text-anchor="middle">4</text><text class="s" x="580" y="304">トークンで問い合わせ</text>
+  <path class="ar" d="M575 384 H709"/><circle class="num" cx="640" cy="370" r="10"/><text class="num-t" x="640" y="374" text-anchor="middle">5</text>
+  <path class="ar" d="M575 372 C700 340 780 200 868 150"/><circle class="num" cx="760" cy="238" r="10"/><text class="num-t" x="760" y="242" text-anchor="middle">6</text>
+  <!-- 管理者の流れ -->
+  <path class="ar2" d="M128 365 H186"/>
+  <path class="ar2" d="M240 362 C290 362 300 300 341 300"/>
+  <path class="ar2" d="M395 300 C450 310 470 384 521 384"/>
+  <!-- 層 -->
+  <text class="tier" x="270" y="560" text-anchor="middle">1層 Web(入口)</text>
+  <text class="tier" x="549" y="560" text-anchor="middle">2層 アプリ(処理)</text>
+  <text class="tier" x="810" y="560" text-anchor="middle">3層 データ(保存)</text>
+</svg>
+<figcaption>黒い実線 = お客様がサイトを見るとき、オレンジの点線 = スタッフが管理画面を使うとき。Secrets Manager は秘密の値を保管し、アプリが起動するときに渡します。ECR はデプロイするアプリ(コンテナイメージ)を保管します。</figcaption>
+</figure>
+<table>
+<tr><th>層</th><th>役割</th><th>今回の構成</th></tr>
+<tr><td>1層 Web</td><td>リクエストを受ける入口</td><td>CloudFront + ALB</td></tr>
+<tr><td>2層 アプリ</td><td>画面を作り、データを処理</td><td><span class="tier front">フロント</span> Next.js ・ <span class="tier back">バックエンド</span> Strapi</td></tr>
+<tr><td>3層 データ</td><td>データとファイルを保存</td><td><span class="tier db">DB</span> Aurora PostgreSQL + S3(写真)</td></tr>
+</table>
+
+<h3>皆さんが設計した構成(WordPress 前提)との違い</h3>
+<p>3層構造そのものは同じです。アプリが2つに分かれる分だけ、以下を反映すれば皆さんの設計の上でそのまま動きます。</p>
+<table>
+<tr><th>項目</th><th>WordPress 前提</th><th>今回の構成</th><th>皆さんの構成に適用するには</th></tr>
+<tr><td>アプリサーバー</td><td>WordPress 1種類</td><td>Next.js + Strapi 2種類</td><td>ECS ならサービスを1つ追加。EC2 なら同じサーバーに両方載せても構いません</td></tr>
+<tr><td>入口の振り分け</td><td>ALB → WordPress</td><td>サイト用・管理者用 CloudFront → ALB</td><td>サイトと管理画面を分ける方法は自由です(今回は ALB のポートで分けます: 80 → 画面、1337 → CMS)</td></tr>
+<tr><td>アプリ同士の通信</td><td>なし</td><td>Next.js → Strapi</td><td>セキュリティグループで送る側(Next.js)→受ける側のポート 1337 を許可。今回は内部 ALB を経由します(Next.js → ALB:1337 → Strapi)</td></tr>
+<tr><td>DB</td><td>MySQL</td><td>PostgreSQL</td><td>Strapi は MySQL にも対応しているので、<strong>設計した MySQL をそのまま使えます</strong></td></tr>
+<tr><td>アップロードファイル</td><td>EFS やサーバーのディスク</td><td>S3</td><td>S3 を推奨します。コンテナは再起動するとディスクが消えるためです</td></tr>
+</table>
+
+<h2>4. 自分の PC の開発環境</h2>
+<p>開発は自分の PC で行います。AWS と同じ3層構造を、PC の中に小さく再現します。</p>
+<figure>
+<svg class="dg" viewBox="0 0 980 190" role="img" aria-label="ローカル構成図">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="grp" x="10" y="10" width="960" height="170" rx="10"/><text class="t" x="26" y="34">自分の PC</text>
+  <rect class="box" x="40" y="60" width="160" height="80" rx="10"/><text class="t" x="120" y="96" text-anchor="middle">ブラウザ</text><text class="s" x="120" y="116" text-anchor="middle">localhost:3000 / 1337</text>
+  <rect class="hl" x="270" y="60" width="180" height="80" rx="10"/><text class="t" x="360" y="92" text-anchor="middle">Next.js :3000</text><text class="s" x="360" y="112" text-anchor="middle">pnpm dev:web</text>
+  <rect class="hl" x="520" y="60" width="180" height="80" rx="10"/><text class="t" x="610" y="92" text-anchor="middle">Strapi :1337</text><text class="s" x="610" y="112" text-anchor="middle">pnpm dev:cms</text>
+  <rect class="box" x="770" y="50" width="180" height="100" rx="10" style="stroke-dasharray:5 3"/><text class="t" x="860" y="88" text-anchor="middle">PostgreSQL :5432</text><text class="s" x="860" y="108" text-anchor="middle">Docker コンテナ</text><text class="s" x="860" y="126" text-anchor="middle">pnpm dev:db</text>
+  <path class="ar" d="M200 100 H266"/><path class="ar" d="M450 100 H516"/><path class="ar" d="M700 100 H766"/>
+</svg>
+<figcaption>Next.js と Strapi は PC で直接実行し(コードを直すとすぐ反映)、DB だけ Docker コンテナで立てます</figcaption>
+</figure>
+
+<h2>5. 開発からデプロイまで</h2>
+<div class="flow">
+  <div><b>① ローカルで開発</b>自分の PC で作って確認<small>01〜04章</small></div>
+  <div class="arr">→</div>
+  <div><b>② PR</b>「この変更を反映してください」<small>CI が自動検査 ・ 05章</small></div>
+  <div class="arr">→</div>
+  <div><b>③ マージ</b>検査を通過したら main に取り込む<small>05章</small></div>
+  <div class="arr">→</div>
+  <div class="hl"><b>④ 自動デプロイ</b>main が変わると AWS に反映<small>CD ・ 06章</small></div>
+</div>
+<p>人がやるのは①〜③だけです。AWS のコンソールを触らなくても本番まで反映されます(本番データの入力だけは本番の管理画面で行います。07章で実際にやってみます)。</p>
+
+<h2>6. コードでやること、管理画面でやること</h2>
+<p>Strapi を使うと、<strong>最初に基本設定だけコードでしておけば、あとのデータ作業は管理画面で完結します。</strong></p>
+<div class="cards">
+  <div class="card"><h4>コードでやること</h4><p>
+  ・リポジトリの骨組み、DB コンテナ(01章)<br>
+  ・画面(Next.js)(04章)<br>
+  ・自動検査・デプロイの設定(05・06章)<br>
+  ・本番用の設定、AWS 構成(06章)</p></div>
+  <div class="card"><h4>Strapi の管理画面でやること</h4><p>
+  ・データ構造(スキーマ)の設計。<strong>ローカルだけ</strong>(02章)<br>
+  ・データの入力・修正・公開(03章)<br>
+  ・API トークンの発行(03章)<br>
+  ・写真のアップロード</p></div>
+</div>
+<div class="key">管理画面で作ったデータ構造は、Strapi が<strong>設計図ファイル(<code>schema.json</code>)として自動保存</strong>し、このファイルはコードと同じように Git で本番にデプロイされます。一方、入力した<strong>データはデプロイされません。</strong>本番では本番の管理画面で入力します。</div>
+
+<h2>7. 使う道具</h2>
+<div class="cards">
+  <div class="card"><h4><span class="tier front">フロント</span> Next.js</h4><p>React ベースの Web フレームワーク。サーバーで HTML を作れるので、トークンのような秘密をサーバーだけに置けます。</p></div>
+  <div class="card"><h4><span class="tier back">バックエンド</span> Strapi</h4><p>オープンソースのヘッドレス CMS。管理画面でデータ構造を作ると API が自動でできます。</p></div>
+  <div class="card"><h4><span class="tier db">DB</span> PostgreSQL</h4><p>リレーショナル DB。ローカルでは Docker で、AWS では Aurora で動かします。</p></div>
+  <div class="card"><h4>Docker</h4><p>プログラムを「コンテナ」という箱に入れて、どこでも同じように動かします。</p></div>
+  <div class="card"><h4>pnpm ・ Biome</h4><p>パッケージ管理(複数のアプリを1つのリポジトリで) ・ コードの形の統一とミスの検出。</p></div>
+  <div class="card"><h4><span class="tier ops">CI/CD</span> GitHub Actions ・ AWS CDK</h4><p>自動検査・自動デプロイ ・ AWS の構成をコードで書く道具。</p></div>
+</div>
+
+<h2>8. 章の構成</h2>
+<ul class="toc">
+  <li><span class="no">01</span><a href="01-local-setup.html">ローカル環境</a>: リポジトリの骨組み、DB、Strapi、Next.js のインストール</li>
+  <li><span class="no">02</span><a href="02-strapi-schema.html">スキーマ</a>: データの「入れ物」を設計 <span class="tier back">バックエンド</span></li>
+  <li><span class="no">03</span><a href="03-data-and-api.html">データ・API</a>: データ入力、API とトークン <span class="tier back">バックエンド</span> <span class="tier db">DB</span></li>
+  <li><span class="no">04</span><a href="04-nextjs-page.html">画面</a>: サーバーで安全にデータを取得して表示 <span class="tier front">フロント</span></li>
+  <li><span class="no">05</span><a href="05-github-ci.html">CI</a>: PR のたびに自動検査、通過しないとマージできない <span class="tier ops">CI/CD</span></li>
+  <li><span class="no">06</span><a href="06-deploy.html">CD・デプロイ</a>: マージすると AWS に自動デプロイ、本番の初期設定 <span class="tier ops">CI/CD</span></li>
+  <li><span class="no">07</span><a href="07-change-to-production.html">変更を本番まで</a>: 小さな機能を1つ、最初から最後まで</li>
+  <li><span class="no">08</span><a href="08-summary.html">まとめ</a>: 全体を1枚に、そして皆さんがやること</li>
+</ul>
+
+<nav class="pager"><span></span><a href="01-local-setup.html">01 ローカル環境 →</a></nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 ローカル環境</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 01</div>
+  <h1>ローカル環境: 自分の PC に3層を小さく作る</h1>
+  <p class="lead">空のフォルダから始めて、画面(Next.js)、CMS(Strapi)、DB(PostgreSQL)がすべて自分の PC で立ち上がる状態まで作ります。ほとんどは生成ツールが作ってくれるので、自分でやることは多くありません。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li class="on"><span>01 ローカル環境</span></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal"><code>http://localhost:3000</code>(画面)と <code>http://localhost:1337/admin</code>(CMS 管理画面)が開き、CMS が DB に接続された状態を作る。</p>
+
+<h2>1. 何を作るか</h2>
+<figure>
+<svg class="dg" viewBox="0 0 980 190" role="img" aria-label="ローカル構成図">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="grp" x="10" y="10" width="960" height="170" rx="10"/><text class="t" x="26" y="34">自分の PC</text>
+  <rect class="box" x="40" y="60" width="160" height="80" rx="10"/><text class="t" x="120" y="96" text-anchor="middle">ブラウザ</text><text class="s" x="120" y="116" text-anchor="middle">localhost:3000 / 1337</text>
+  <rect class="hl" x="270" y="60" width="180" height="80" rx="10"/><text class="t" x="360" y="92" text-anchor="middle">Next.js :3000</text><text class="s" x="360" y="112" text-anchor="middle">pnpm dev:web</text>
+  <rect class="hl" x="520" y="60" width="180" height="80" rx="10"/><text class="t" x="610" y="92" text-anchor="middle">Strapi :1337</text><text class="s" x="610" y="112" text-anchor="middle">pnpm dev:cms</text>
+  <rect class="box" x="770" y="50" width="180" height="100" rx="10" style="stroke-dasharray:5 3"/><text class="t" x="860" y="88" text-anchor="middle">PostgreSQL :5432</text><text class="s" x="860" y="108" text-anchor="middle">Docker コンテナ</text><text class="s" x="860" y="126" text-anchor="middle">pnpm dev:db</text>
+  <path class="ar" d="M200 100 H266"/><path class="ar" d="M450 100 H516"/><path class="ar" d="M700 100 H766"/>
+</svg>
+<figcaption>画面と CMS は PC で直接実行し(コードを直すとすぐ反映)、DB だけ Docker コンテナで立てます</figcaption>
+</figure>
+<p>3つを<strong>1つのリポジトリ(フォルダ)</strong>にまとめます。この構成を<em>モノレポ</em>と呼びます。「CMS のデータ構造変更 + 画面変更」を一度に検査・デプロイできて便利です。</p>
+<div class="state"><div class="h">📁 この章が終わると</div><pre>3tier-strapi-nextjs/
+├── apps/
+│   ├── web/      <span class="tier front">フロント</span> Next.js  (create-next-app が生成)
+│   └── cms/      <span class="tier back">バックエンド</span> Strapi   (create-strapi が生成)
+├── compose.yaml  <span class="tier db">DB</span>    PostgreSQL コンテナの設定
+└── 設定ファイルいくつか(バージョン固定、コマンド集、コード検査のルール)</pre></div>
+
+<h2>2. 道具の準備</h2>
+<table>
+<tr><th>道具</th><th>用途</th><th>インストール</th><th>確認</th></tr>
+<tr><td>Node.js 24</td><td>Next.js と Strapi を実行</td><td><a href="https://github.com/nvm-sh/nvm">nvm</a> で <code>nvm install 24</code></td><td><code>node -v</code></td></tr>
+<tr><td>pnpm 12</td><td>パッケージのインストール・管理</td><td><code>npx get-pnpm</code> → <strong>ターミナルを開き直す</strong></td><td><code>pnpm -v</code></td></tr>
+<tr><td>Docker</td><td>DB をコンテナで実行</td><td>Docker Desktop など</td><td><code>docker compose version</code></td></tr>
+<tr><td>Git</td><td>バージョン管理</td><td>OS 標準または公式サイト</td><td><code>git --version</code></td></tr>
+<tr><td>GitHub CLI ・ AWS CLI <small>(05・06章から)</small></td><td>GitHub・AWS をコマンドで操作</td><td>公式サイト(<code>gh</code>, <code>aws</code>)。AWS は会社アカウントのログイン方法(SSO など)で認証情報を準備</td><td><code>gh --version</code> / <code>aws --version</code></td></tr>
+</table>
+
+<h2>3. リポジトリの骨組み</h2>
+<p class="where">実行場所: 作業用フォルダ</p>
+<pre><code>mkdir 3tier-strapi-nextjs &amp;&amp; cd 3tier-strapi-nextjs
+git init -b main
+mkdir apps</code></pre>
+<p>ルートに設定ファイルを置きます。内容はリポジトリのファイルを参照してください。リポジトリのファイルは<strong>最後の章まで終わった状態</strong>なので、あとの章で追加した行(lefthook、型生成コマンド、<code>infra</code>、脆弱性対応の <code>overrides</code>)も入っています。この章の時点の姿は、01章のコミットで確認できます。</p>
+<div class="files">
+  <div><code>package.json</code><p>よく使うコマンド集(<code>pnpm dev:cms</code> など)と pnpm バージョンの固定</p></div>
+  <div><code>pnpm-workspace.yaml</code><p><code>apps/</code> 配下のアプリを1つにまとめる + インストール時のセキュリティ設定</p></div>
+  <div><code>.nvmrc</code><p>Node バージョンの固定(24)。全員が同じバージョンを使う</p></div>
+  <div><code>.gitignore</code><p>Git に上げないもの: 秘密の値(<code>.env</code>)、インストール結果など</p></div>
+  <div><code>.editorconfig</code> <span class="skip">省略可</span><p>エディタが違っても、インデント・改行を揃える</p></div>
+</div>
+<details class="opt">
+<summary>pnpm が防いでくれる2つのこと(サプライチェーン攻撃対策) <span class="skip">省略可</span></summary>
+<p>誰かが有名なパッケージに悪意あるコードを混ぜて公開する攻撃(サプライチェーン攻撃)は実際に起きています。pnpm 12 は既定で、①インストール時にパッケージのスクリプト実行を禁止し(許可したものだけ <code>pnpm-workspace.yaml</code> の <code>allowBuilds</code> に書く)、②公開されてから1日経っていないバージョンはインストールしません。新しいパッケージを入れて <code>ERR_PNPM_IGNORED_BUILDS</code> が出たら、<code>allowBuilds</code> にそのパッケージを書いて許可するか決めます。</p>
+</details>
+
+<h2>4. DB: コンテナで立てる <span class="tier db">DB</span></h2>
+<p>DB は PC にインストールせず、<strong>Docker コンテナ</strong>で動かします。誰の PC でも同じバージョンが立ち上がり、不要になれば丸ごと消せます。設定は <code>compose.yaml</code> の1つだけです。</p>
+<table>
+<tr><th>設定</th><th>値</th><th>意味</th></tr>
+<tr><td>イメージ</td><td><code>postgres:17-alpine</code></td><td>本番(Aurora)と同じメジャーバージョン</td></tr>
+<tr><td>DB 名・ユーザー・パスワード</td><td>すべて <code>strapi</code></td><td>ローカル専用の値。本番のパスワードは AWS がランダムに作る(06章)</td></tr>
+<tr><td>ポート</td><td><code>5432</code></td><td>PC からこの番号で接続</td></tr>
+<tr><td>ボリューム</td><td><code>db-data</code></td><td>コンテナを消してもデータが残る</td></tr>
+</table>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm dev:db
+docker compose ps</code></pre>
+<p class="ok"><code>STATUS</code> に <code>(healthy)</code> と表示されます。</p>
+
+<h2>5. CMS: Strapi のインストール <span class="tier back">バックエンド</span></h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>npx create-strapi@latest apps/cms \
+  --ts --use-pnpm --install --no-run --skip-cloud --no-example --no-git-init \
+  --dbclient postgres --dbhost 127.0.0.1 --dbport 5432 \
+  --dbname strapi --dbusername strapi --dbpassword strapi --dbssl false</code></pre>
+<p>TypeScript で、サンプルデータなしで、4節の DB に接続するように作ります。続けてモノレポに合わせて少し整理します。</p>
+<p class="where">実行場所: <code>apps/cms</code></p>
+<pre><code># Strapi Cloud(有料ホスティング)用なので不要(この2行は省略しても動きます)
+pnpm remove @strapi/plugin-cloud
+npm pkg delete scripts.deploy scripts.upgrade "scripts.upgrade:dry"
+# pnpm の設定はルート1か所にまとめる
+npm pkg delete pnpm
+# 型検査コマンド(05章の自動検査が使う)
+npm pkg set scripts.typecheck="tsc --noEmit"
+pnpm add -D @types/node@^24</code></pre>
+
+<h3>設定値は「環境変数」で受け取る</h3>
+<p>Strapi の設定ファイルは、DB のアドレスや秘密の値を直接書かず、<strong>環境変数</strong>という名札で読みます(例: <code>DATABASE_HOST</code>)。値を入れる場所だけが環境ごとに違います。</p>
+<div class="flow">
+  <div><b>ローカル</b><code>apps/cms/.env</code> ファイル<small>生成ツールが作る。秘密の値が入っているので Git には上げない</small></div>
+  <div class="arr">→</div>
+  <div class="hl"><b>同じ名前で読む</b><code>env("DATABASE_HOST")</code><small>コードはローカル・本番とも同じ</small></div>
+  <div class="arr">←</div>
+  <div><b>本番(AWS)</b>Secrets Manager など<small>ECS がコンテナに渡す(06章)</small></div>
+</div>
+<p>代わりに「どんな値が必要か」だけを書いた <code>apps/cms/.env.example</code> を Git に上げます(値はダミー)。</p>
+<details class="opt">
+<summary>それぞれの秘密の値は何に使われますか? <span class="skip">省略可</span></summary>
+<table>
+<tr><th>変数</th><th>使われる場所</th><th>値が変わると</th></tr>
+<tr><td><code>APP_KEYS</code></td><td>ログインセッションに署名(改ざん防止の印)</td><td>ログインセッションが無効に</td></tr>
+<tr><td><code>ADMIN_JWT_SECRET</code></td><td>管理者ログイントークンに署名</td><td>管理者が再ログイン</td></tr>
+<tr><td><code>API_TOKEN_SALT</code></td><td>API トークン(03章)を保存するときに混ぜる値</td><td>発行した API トークンがすべて無効に</td></tr>
+<tr><td><code>ENCRYPTION_KEY</code></td><td>発行したトークンを管理画面で再表示できるよう暗号化</td><td>保存されたトークンを表示できなくなる</td></tr>
+<tr><td><code>TRANSFER_TOKEN_SALT</code>, <code>JWT_SECRET</code></td><td>今回は使わない機能用</td><td>—</td></tr>
+</table>
+</details>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm install
+pnpm dev:cms</code></pre>
+<p class="ok"><code>http://localhost:1337/admin</code> で管理者登録画面が開きます(登録は02章で)。</p>
+
+<h2>6. 画面: Next.js のインストール <span class="tier front">フロント</span></h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>npx create-next-app@latest apps/web \
+  --ts --tailwind --biome --app --src-dir --import-alias '@/*' \
+  --use-pnpm --skip-install --disable-git</code></pre>
+<p>重要なのは <code>--app</code>(App Router)です。<strong>サーバーでしか実行されないコード</strong>を書けるので、04章で API トークンをブラウザから隠せます。続けてモノレポに合わせて整理します。</p>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>rm apps/web/pnpm-workspace.yaml     # pnpm の設定はルート1か所に
+mv apps/web/biome.json biome.json   # コード検査のルールをルートに移し web・cms 共通に
+cd apps/web
+npm pkg delete packageManager scripts.lint scripts.format "devDependencies.@biomejs/biome"
+npm pkg set scripts.typecheck="next typegen &amp;&amp; tsc --noEmit"
+cd ../..
+pnpm add -D @types/node@^24 --filter web
+pnpm install
+pnpm dev:web</code></pre>
+<figure><img src="../assets/img/setup/next-default.png" alt="Next.js の初期画面"><figcaption>http://localhost:3000 にこの画面が出れば成功</figcaption></figure>
+
+<h2>7. コード検査ツール(Biome)と最初のコミット</h2>
+<p><strong>Biome</strong> はコードの形を統一(フォーマット)し、よくあるミスを見つけ(リント)ます。ルートの <code>biome.json</code> 1つで、すべてのアプリに同じルールを適用します。ルールは既定の推奨セット(<code>recommended</code>)を使い、自動生成ファイル・ドキュメントなどは検査から外します。全体: <code>biome.json</code></p>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm install
+pnpm format      # 全コードをルールに合わせて自動修正
+pnpm lint        # 検査のみ
+git add .
+git commit -m "chore: ローカル開発環境を構築"</code></pre>
+<p>Strapi が作ったファイルで<strong>警告(warning)</strong>がいくつか出ますが、生成ツールのコードスタイルによるものなので問題ありません。<code>error</code> がなければ大丈夫です。</p>
+<details class="opt">
+<summary>コミットメッセージのルール <span class="skip">省略可</span></summary>
+<p><code>種類: 内容</code> の形式(Conventional Commits)で書きます。種類は <code>feat</code>(機能)、<code>fix</code>(修正)、<code>chore</code>(設定)、<code>docs</code>(ドキュメント)くらいで十分です。内容はチームが読む言語で書きます(この例では日本語)。</p>
+</details>
+
+<h2>毎日使うコマンド</h2>
+<table>
+<tr><th>コマンド(リポジトリのルート)</th><th>やること</th></tr>
+<tr><td><code>pnpm dev:db</code></td><td>DB コンテナを起動</td></tr>
+<tr><td><code>pnpm dev:cms</code></td><td>Strapi を起動 → <code>http://localhost:1337/admin</code></td></tr>
+<tr><td><code>pnpm dev:web</code></td><td>Next.js を起動 → <code>http://localhost:3000</code></td></tr>
+<tr><td><code>pnpm lint</code> / <code>pnpm format</code></td><td>コード検査 / 自動修正</td></tr>
+<tr><td><code>docker compose down</code>(<code>-v</code>)</td><td>DB 停止(<code>-v</code> を付けるとデータも削除)</td></tr>
+</table>
+<details class="opt">
+<summary>問題が起きたとき <span class="skip">省略可</span></summary>
+<table>
+<tr><th>症状</th><th>確認すること</th></tr>
+<tr><td>Strapi が DB に接続できない</td><td><code>docker compose ps</code> が healthy か、<code>apps/cms/.env</code> の <code>DATABASE_*</code> が compose.yaml と同じか</td></tr>
+<tr><td><code>address already in use</code></td><td>同じポートを別のプログラムが使用中。そのプログラムを止めるかポートを変える</td></tr>
+<tr><td><code>pnpm: command not found</code></td><td><code>npx get-pnpm</code> のあとターミナルを開き直したか</td></tr>
+</table>
+</details>
+
+<nav class="pager"><a href="00-overview.html">← 00 全体構成</a><a href="02-strapi-schema.html">02 スキーマ →</a></nav>
+</main>
+</body>
+</html>

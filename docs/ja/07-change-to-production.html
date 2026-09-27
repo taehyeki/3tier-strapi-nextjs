@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 変更を本番まで</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 07</div>
+  <h1>変更を本番まで: 小さな機能を1つ、最後まで送る</h1>
+  <p class="lead">これまで作った流れを、最初から最後まで一度通してみます。ローカルで小さな機能を追加して PR をマージすれば、残りは自動で本番に反映されます。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li class="on"><span>07 変更を本番まで</span></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal">追加メニューに「売り切れ」表示を追加し、ローカル → PR → マージ → 自動デプロイ → 本番の管理画面で ON にするまでを終える。</p>
+
+<h2>1. 何を変えるか</h2>
+<p>スタッフが管理画面で「売り切れ」を ON にすると、サイトの追加メニューが薄くなり「売り切れ」と表示されるようにします。</p>
+<div class="ba">
+<figure><img src="../assets/img/change/before-prod.png" alt="変更前(本番)"><figcaption>変更前(本番)</figcaption></figure>
+<figure><img src="../assets/img/change/after-prod.png" alt="変更後(本番)。本番の管理画面でチャーシューを売り切れにした状態"><figcaption>変更後(本番)。本番の管理画面でチャーシューを売り切れにした状態</figcaption></figure>
+</div>
+<p>小さな変更ですが、3層すべてが登場します。</p>
+<table>
+<tr><th>変わるもの</th><th>層</th><th>誰が変えるか</th><th>本番に行く方法</th></tr>
+<tr><td>スキーマ: Extra に soldOut(ON/OFF)フィールド</td><td><span class="tier back">バックエンド</span></td><td>ローカルの管理画面 → Strapi がファイルに保存</td><td rowspan="3">PR → マージ → <strong>自動デプロイ</strong></td></tr>
+<tr><td>型: 画面コードが soldOut を知る</td><td><span class="tier front">フロント</span></td><td>自動生成</td></tr>
+<tr><td>画面: 売り切れなら薄く + 「売り切れ」</td><td><span class="tier front">フロント</span></td><td>人がコードで</td></tr>
+<tr><td>データ: 「チャーシューは売り切れ」</td><td><span class="tier db">DB</span></td><td>本番の管理画面</td><td><strong>デプロイされない</strong>。本番で直接</td></tr>
+</table>
+
+<h2>2. 流れ</h2>
+<div class="flow">
+  <div><b>① フィールド追加</b>ローカルの管理画面<small>02章</small></div><div class="arr">→</div>
+  <div><b>② 画面修正</b>型は自動<small>04章</small></div><div class="arr">→</div>
+  <div><b>③ ローカル確認</b>ON にして再読み込み<small>03・04章</small></div><div class="arr">→</div>
+  <div><b>④ PR → マージ</b>CI 通過<small>05章</small></div><div class="arr">→</div>
+  <div class="hl"><b>⑤ 自動デプロイ</b>約10分<small>06章</small></div><div class="arr">→</div>
+  <div><b>⑥ 本番で ON にする</b>本番の管理画面<small>03章</small></div>
+</div>
+
+<h2>3. ローカル: フィールド追加 <span class="tier back">バックエンド</span></h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>git switch -c feat/extra-sold-out
+pnpm dev:db
+pnpm dev:cms</code></pre>
+<p><strong>Content-Type Builder → Extra → Add another field → Boolean</strong>。名前は <code>soldOut</code>、ADVANCED SETTINGS の Default value は <code>false</code>。Finish → Save。</p>
+<figure><img src="../assets/img/change/ctb-boolean-basic.png" alt="ON/OFF(Boolean)フィールドの追加。名前はコードで使う識別子なので英字で"><figcaption>ON/OFF(Boolean)フィールドの追加。名前はコードで使う識別子なので英字で</figcaption></figure>
+<details class="opt">
+<summary>Strapi が保存した設計図を見る <span class="skip">省略可</span></summary>
+<p class="file">apps/cms/src/api/extra/content-types/extra/schema.json</p>
+<pre><code>"soldOut": {
+  "type": "boolean",
+  "default": false
+}</code></pre>
+</details>
+<div class="note"><strong>ローカルの Strapi を起動したままブランチを切り替えないでください。</strong>開発モードの Strapi は、ファイルが変わると再起動しながら DB をそのスキーマに合わせます。フィールドのないブランチに切り替えると、その列を消してしまい、入力していた値が消えます(この資料を作る際に実際に起きました)。ブランチを切り替える前に Strapi を止めます。</div>
+
+<h2>4. 画面修正 <span class="tier front">フロント</span></h2>
+<p>画面コードが新しいフィールドを知るよう、型を作り直します。<code>pnpm gen:types</code> を実行します(DB 起動中)。このリポジトリのように lefthook に gen-types を入れておけば、忘れても<strong>コミット時に自動で</strong>作られます(この章の作業中に追加したもの、9節)。続けて追加メニューの部分を直します。以下はデザインを省いた<strong>要約</strong>で、実際のファイルは <code>apps/web/src/app/page.tsx</code> です。</p>
+<pre><code>{extras.map((extra) =&gt; (
+  &lt;li&gt;
+    &lt;div className={extra.soldOut ? "薄く" : undefined}&gt;   // 売り切れなら写真を薄く
+      &lt;Photo media={extra.photo} /&gt;
+    &lt;/div&gt;
+    {extra.soldOut &amp;&amp; &lt;span&gt;売り切れ&lt;/span&gt;}              // 売り切れのときだけ表示
+    &lt;p&gt;{extra.name} +{yen(extra.price)}&lt;/p&gt;
+  &lt;/li&gt;
+))}</code></pre>
+<p>データを取得するコードは直しません。追加メニューはすでにすべての文字・数値フィールドを受け取っているので、新しいフィールドもそのまま入ってきます。</p>
+<details class="opt">
+<summary>生成された型が <code>boolean | null</code> になる理由 <span class="skip">省略可</span></summary>
+<p>フィールドを追加する前に作ったデータは値が空です(<code>null</code>)。既定値 <code>false</code> は新しく作るデータにしか入りません。画面では <code>null</code> を「売り切れではない」として扱います。型を作り直さないまま <code>extra.soldOut</code> を使うと型検査が失敗するので、忘れても PR の CI が止めてくれます。</p>
+</details>
+
+<h2>5. ローカルで確認</h2>
+<p>ローカルの管理画面の<strong>Content Manager → Extra → チャーシュー</strong>で soldOut を TRUE にして Publish → <code>http://localhost:3000</code> を再読み込みします(<code>pnpm dev:web</code> 実行中)。</p>
+<div class="ba">
+<figure><img src="../assets/img/change/admin-soldout.png" alt="管理画面に soldOut のスイッチができた"><figcaption>管理画面に soldOut のスイッチができた</figcaption></figure>
+<figure><img src="../assets/img/change/after-local.png" alt="ローカルサイト。再読み込みだけで反映される"><figcaption>ローカルサイト。再読み込みだけで反映される</figcaption></figure>
+</div>
+
+<h2>6. コミット → PR → マージ</h2>
+<p class="where">実行場所: リポジトリのルート(DB 起動中。コミット時に型生成が Strapi を一瞬起動する)</p>
+<pre><code>git add apps
+git commit -m "feat: 追加メニューに「売り切れ」表示を追加"
+git push -u origin feat/extra-sold-out</code></pre>
+<p>コミット時に lefthook がコードの形を整え(gen-types を入れていれば型も生成)ます。GitHub で PR を作ると CI が4つ動き、すべて通過したら squash マージします。</p>
+
+<h2>7. 自動デプロイ <span class="tier ops">CI/CD</span></h2>
+<p>マージすると06章のデプロイが自分で始まります。人がやることはありません。</p>
+<table>
+<tr><th>段階</th><th>今回の変更で起きること</th></tr>
+<tr><td>publish</td><td>web・cms のイメージを新しいコミット番号でビルド → 検査 → 保管庫(約5分)</td></tr>
+<tr><td>deploy</td><td>DB など(Data)は変更がないのでそのまま。コンテナだけ新しいイメージに切り替え(約5分)</td></tr>
+<tr><td>ECS</td><td>新しいコンテナが立ち上がってから古いものを落とす(無停止)。cms は起動時に新しいスキーマを見て、本番 DB に soldOut 列を追加</td></tr>
+</table>
+<p>デプロイ直後、本番サイトは<strong>何も変わっていないように</strong>見えます。本番 DB の既存データには売り切れの値が空だからです。</p>
+
+<h2>8. 本番で ON にする <span class="tier db">DB</span></h2>
+<p>本番の管理画面(06章の AdminUrl)で、ローカルと同じ操作をします: <strong>Content Manager → Extra → チャーシュー → soldOut TRUE → Publish</strong>。本番サイトを再読み込みすると、1節の「変更後」の画面になります。売り切れが解消したら FALSE に戻せばよく、これはデプロイなしですぐ反映されます。</p>
+<div class="key"><strong>スキーマはデプロイされ、データはデプロイされない。</strong>フィールド(入れ物)はコードとして本番に行きましたが、「何が売り切れか」(データ)は、ローカルで ON にしたものが本番には行きません。日々変わるものはデータとして、一度決めればよい表示方法はコードとして持ちます。</div>
+
+<h2>9. コミット</h2>
+<pre><code>feat: 追加メニューに「売り切れ」表示を追加</code></pre>
+<p>この章の作業中に「型生成を忘れやすい」とわかったので、コミット時に自動で作られるよう lefthook を直しました(05章4節の gen-types)。</p>
+<pre><code>chore: スキーマを変えたコミットでは型の再生成(gen:types)を自動で行う</code></pre>
+
+<nav class="pager"><a href="06-deploy.html">← 06 CD・デプロイ</a><a href="08-summary.html">08 まとめ →</a></nav>
+</main>
+</body>
+</html>

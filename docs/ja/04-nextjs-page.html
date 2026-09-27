@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 画面</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 04 · <span class="tier front">フロント</span></div>
+  <h1>画面: サーバーで安全にデータを取得して表示する</h1>
+  <p class="lead">03章で <code>curl</code> でやったことを Next.js サーバーに代わりにさせ、受け取ったデータでメニューページを描きます。画面のデザインは皆さんのサイトに合わせて自由に作って構いません。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li class="on"><span>04 画面</span></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal">Next.js サーバーがトークンで Strapi のデータを取得してメニューページを表示し、トークンがブラウザに渡らないことを確認する。</p>
+
+<h2>1. 構造: トークンはサーバーにだけ</h2>
+<figure>
+<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="サーバーコンポーネントの流れ">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="box" x="10" y="50" width="170" height="90" rx="10"/><text class="t" x="95" y="90" text-anchor="middle">ブラウザ</text><text class="s" x="95" y="110" text-anchor="middle">トークンを知らない</text>
+  <rect class="hl" x="330" y="30" width="240" height="130" rx="12"/><text class="t" x="450" y="60" text-anchor="middle">Next.js サーバー</text><text x="450" y="90" text-anchor="middle">サーバーコンポーネント (page.tsx)</text><text class="s" x="450" y="114" text-anchor="middle">.env.local のトークンを読む</text>
+  <rect class="box" x="720" y="50" width="170" height="90" rx="10"/><text class="t" x="805" y="90" text-anchor="middle">Strapi</text><text class="s" x="805" y="110" text-anchor="middle">:1337/api</text>
+  <path class="ar" d="M180 80 H326"/><text class="s" x="190" y="70">① ページのリクエスト</text>
+  <path class="ar" d="M570 80 H716"/><text class="s" x="580" y="70">② トークン + API 呼び出し</text>
+  <path class="ar" d="M716 115 H574"/><text class="s" x="600" y="135">③ JSON</text>
+  <path class="ar" d="M326 115 H184"/><text class="s" x="195" y="135">④ 完成した HTML だけ</text>
+</svg>
+</figure>
+<p>Next.js の<strong>サーバーコンポーネント</strong>は、サーバーでしか実行されない画面コードです(App Router では既定)。ここでトークンを使えば、ブラウザには完成した HTML だけが行き、トークンと呼び出しコードは行きません。00章のたとえの「ホールスタッフだけが通行証を持つ」がこれです。</p>
+
+<h2>2. 必要なパッケージ</h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm -F web add @strapi/client server-only
+pnpm -F web add -D openapi-typescript</code></pre>
+<table>
+<tr><th>パッケージ</th><th>役割</th></tr>
+<tr><td><code>@strapi/client</code></td><td>Strapi 公式クライアント。「写真も一緒に」のような条件を書くと、リクエストのアドレスを組み立ててくれる</td></tr>
+<tr><td><code>server-only</code></td><td>これを入れたファイルをブラウザ用コードから使うとビルドエラーになる → トークンが誤ってブラウザに混ざるのを防ぐ</td></tr>
+<tr><td><code>openapi-typescript</code></td><td>3節の型の自動生成に使う</td></tr>
+</table>
+
+<h2>3. 型の自動生成: スキーマを二重に書かない</h2>
+<p>画面コードが「メニューには name, sizes… がある」と知っていれば、タイプミスをエディタがすぐ教えてくれます。この情報(型)を手で書くと02章のスキーマをもう一度書くことになるので、<strong>スキーマから自動で作ります。</strong></p>
+<figure>
+<svg class="dg" viewBox="0 0 900 190" role="img" aria-label="型生成の流れ">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--fg)"/></marker></defs>
+  <rect class="box" x="10" y="40" width="190" height="70" rx="10"/><text class="t" x="105" y="70" text-anchor="middle">Strapi のスキーマ</text><text class="s" x="105" y="90" text-anchor="middle">02章の schema.json</text>
+  <rect class="box" x="355" y="40" width="190" height="70" rx="10"/><text class="t" x="450" y="70" text-anchor="middle">API 仕様</text><text class="s" x="450" y="90" text-anchor="middle">apps/cms/openapi.json</text>
+  <rect class="hl" x="700" y="40" width="190" height="70" rx="10"/><text class="t" x="795" y="70" text-anchor="middle">TypeScript の型</text><text class="s" x="795" y="90" text-anchor="middle">apps/web/src/types/strapi.d.ts</text>
+  <path class="ar" d="M200 75 H351"/><text class="s" x="210" y="65">strapi openapi generate</text>
+  <path class="ar" d="M545 75 H696"/><text class="s" x="560" y="65">openapi-typescript</text>
+  <text class="s" x="10" y="140">内容はスキーマ(設計図)から生まれる。DB のデータは使わないが、生成するとき Strapi を一瞬起動するので DB が動いている必要がある。</text>
+  <text class="s" x="10" y="164">コマンドは pnpm gen:types の1つ。忘れやすいので、あとで lefthook に入れ、スキーマファイルを含むコミットで自動実行するようにした(05・07章)。</text>
+</svg>
+</figure>
+<p>例えば02章で選択肢として作ったサイズは、<code>"small" | "medium" | "large"</code> という型になります。画面コードで <code>"smal"</code> と書き間違えると、すぐエラーで教えてくれます。</p>
+<p>このコマンドは最初に自分で登録します(リポジトリにはすでにあります)。</p>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>cd apps/cms &amp;&amp; npm pkg set scripts.openapi="strapi openapi generate --output openapi.json" &amp;&amp; cd ../..
+cd apps/web &amp;&amp; npm pkg set scripts.gen:types="openapi-typescript ../cms/openapi.json -o src/types/strapi.d.ts" &amp;&amp; cd ../..
+npm pkg set scripts.gen:types="pnpm -F cms openapi &amp;&amp; pnpm -F web gen:types &amp;&amp; biome format --write apps/web/src/types"</code></pre>
+<p>中間ファイル <code>apps/cms/openapi.json</code> は <code>.gitignore</code> に入れてコミットしません。Strapi の OpenAPI 生成は現在実験的(experimental)な機能で、出力形式が変わる可能性があります。</p>
+<p>登録したら実行します。</p>
+<p class="where">実行場所: リポジトリのルート(DB 起動中)</p>
+<pre><code>pnpm gen:types</code></pre>
+
+
+<h2>4. Strapi への接続とデータ取得</h2>
+<p>コードは2つのファイルに分けました。要点だけ見るとこうです。</p>
+<div class="files">
+  <div><code>apps/web/src/lib/strapi.ts</code><p>Strapi への接続の準備。URL とトークンは<strong>環境変数</strong>から読む(ローカルは <code>.env.local</code>、本番は AWS が渡す)。なければすぐエラーにして、設定ミスに早く気づけるようにする</p></div>
+  <div><code>apps/web/src/lib/menu.ts</code><p>メニューページに必要なデータを一度に取得する。写真・サイズ・トッピングのように<strong>一緒に取ってくるもの</strong>(03章の <code>populate</code>)をここで指定する</p></div>
+</div>
+<p class="file">apps/web/src/lib/strapi.ts</p>
+<pre><code>import "server-only";
+import { strapi } from "@strapi/client";
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`環境変数 ${name} が設定されていません`);
+  }
+  return value;
+}
+
+export function createStrapiClient() {
+  return strapi({
+    baseURL: `${requireEnv("STRAPI_URL")}/api`,
+    auth: requireEnv("STRAPI_API_TOKEN"),
+  });
+}</code></pre>
+<details class="opt">
+<summary>「リクエストが来るたびに問い合わせる」理由(<code>connection()</code>) <span class="skip">省略可</span></summary>
+<p><code>menu.ts</code> は問い合わせの前に <code>await connection()</code> を呼びます。「ビルド時ではなく、お客様がページを開いたときに Strapi に聞け」という印です。そのため①管理画面で Publish した内容が再読み込みだけで反映され、②自動ビルド(05・06章)で Strapi がなくてもビルドでき、③同じイメージをローカル・本番のどこでも使えます。</p>
+</details>
+
+<h2>5. 画面: 受け取った値をどこに入れるか</h2>
+<p>この章の要点です。<strong>「Strapi から受け取った値が画面のどこに出るか」</strong>だけを追いかけます。以下はデザイン設定を省いた<strong>要約</strong>で、実際のファイルは <code>apps/web/src/app/page.tsx</code> です。</p>
+<pre><code>const { shop, menus, toppings, extras } = await getMenuPage();   // サーバーがトークンで問い合わせ
+
+&lt;h1&gt;{shop.name}&lt;/h1&gt;                 // 店名
+{menus.map((menu) =&gt; (                 // メニューの数だけカードを繰り返す
+  &lt;article&gt;
+    &lt;h3&gt;{menu.name}&lt;/h3&gt;
+    {menu.sizes.map((size) =&gt; (         // サイズの数だけ行を繰り返す
+      &lt;tr&gt;&lt;th&gt;{SIZE_LABEL[size.label]}&lt;/th&gt;&lt;td&gt;{yen(size.price)}&lt;/td&gt;&lt;/tr&gt;   // small → 小、800 → 800円
+    ))}
+  &lt;/article&gt;
+))}</code></pre>
+<div class="ba">
+<figure><img src="../assets/img/web/part-shop-name.png" alt="店名の部分"><figcaption><code>shop.name</code> = 管理画面 Shop の name</figcaption></figure>
+<figure><img src="../assets/img/web/part-menu-card.png" alt="メニューカード"><figcaption>メニューをもう1つ Publish すると、コードを直さなくてもカードが増える</figcaption></figure>
+</div>
+<p>トッピング・追加メニュー・店の情報も同じ方法で値を入れます。</p>
+<figure><img src="../assets/img/web/full-page.png" alt="完成したメニューページ全体"><figcaption>完成したページ。店名 → メニュー → 無料トッピング → 追加メニュー → 店の情報</figcaption></figure>
+
+<h2>6. 確認: トークンがブラウザにない</h2>
+<p class="where">実行場所: リポジトリのルート(ターミナル3つ)</p>
+<pre><code>pnpm dev:db
+pnpm dev:cms
+pnpm dev:web   # → http://localhost:3000</code></pre>
+<ol class="steps">
+  <li>管理画面で価格を変えて Publish → 再読み込みするとすぐ反映されます。</li>
+  <li>ブラウザの開発者ツール(F12)→ Network タブ: <code>localhost:1337/api</code> へのリクエストが<strong>1つもありません。</strong>ブラウザは写真だけを受け取ります。</li>
+  <li>ページのソースを見てトークンの先頭部分を検索しても<strong>見つかりません。</strong></li>
+</ol>
+
+<h2>7. 検査・ビルド・コミット</h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm format &amp;&amp; pnpm lint &amp;&amp; pnpm typecheck
+pnpm -F web build
+git add .
+git commit -m "feat(web): メニューページ"</code></pre>
+<p class="ok">ビルド結果で <code>/</code> が <code>ƒ (Dynamic)</code> と表示されます。「リクエストが来たときにサーバーで作る」という意味で、ビルド時に Strapi がなくても構いません。</p>
+
+<nav class="pager"><a href="03-data-and-api.html">← 03 データ・API</a><a href="05-github-ci.html">05 CI →</a></nav>
+</main>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 スキーマ</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 02 · <span class="tier back">バックエンド</span></div>
+  <h1>スキーマ: データの「入れ物」を設計する</h1>
+  <p class="lead">「画面に何を見せるか」から逆算してデータ構造(スキーマ)を決め、Strapi の管理画面でクリックだけで作ります。この章ではコードを書きません。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li class="on"><span>02 スキーマ</span></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal">店の情報・メニュー・サイズ・トッピング・追加メニューを Strapi のスキーマとして作り、画面での操作が<strong>ファイル</strong>として保存されることを確認する。</p>
+
+<h2>1. まず「何を見せるか」を書き出す</h2>
+<p>皆さんのサイトに置き換えて、同じ順序で考えてみてください。この例のメニューページには、こんな情報が必要です。</p>
+<ul>
+  <li>店名、住所、営業時間、定休日、食券のルール、店の写真</li>
+  <li>メニュー(ラーメン、つけ麺)とサイズ(小/中/大)ごとの麺の量・価格</li>
+  <li>無料トッピング(ニンニク・ヤサイ…)と選べる量(ナシ〜マシマシ)</li>
+  <li>有料の追加(ライス、チャーシュー)と価格</li>
+</ul>
+
+<h2>2. Strapi の「入れ物」4種類</h2>
+<p>お店の前にある<strong>メニュー表</strong>を思い浮かべてください。メニュー表の情報は性質によって4種類の入れ物に分かれます。</p>
+<figure>
+<svg class="dg" viewBox="0 0 900 610" role="img" aria-label="メニュー表で見る4つの入れ物">
+  <defs>
+    <style>
+      .sg{fill:none;stroke:#e8590c;stroke-width:2.5;stroke-dasharray:7 4}
+      .cl{fill:var(--card);stroke:#1c7ed6;stroke-width:2.5}
+      .cp{fill:color-mix(in srgb,#2f9e44 10%,transparent);stroke:#2f9e44;stroke-width:2;stroke-dasharray:5 3}
+      .rl{stroke:#7048e8;stroke-width:2.2;fill:none;stroke-dasharray:6 4}
+      .pill-s{fill:#e8590c}.pill-c{fill:#1c7ed6}.pill-p{fill:#2f9e44}.pill-r{fill:#7048e8}
+      .pt{fill:#fff;font-size:12.5px;font-weight:700}
+      .big{font-size:24px;font-weight:800}
+    </style>
+  </defs>
+  <rect x="10" y="10" width="880" height="590" rx="18" style="fill:var(--code);stroke:var(--line)"/>
+  <!-- Single -->
+  <rect class="sg" x="40" y="34" width="820" height="92" rx="10"/>
+  <text x="64" y="78" style="font-size:24px;font-weight:800">麺屋ヤマモリ</text>
+  <text x="64" y="106" class="s">キム系ラーメン ・ 営業 11:00〜15:00 ・ 定休日 水曜 ・ 東京都〇〇区…</text>
+  <rect class="pill-s" x="706" y="46" width="140" height="26" rx="13"/><text class="pt" x="776" y="64" text-anchor="middle">① Single Type</text>
+  <!-- Collection cards -->
+  <rect class="cl" x="60" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/ramen.png" x="75" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="220" y="200" style="font-size:18px">ラーメン</text><text class="s" x="220" y="222">極太麺・豚骨醤油</text>
+  <rect class="cp" x="75" y="286" width="270" height="104" rx="8"/>
+  <text x="95" y="314">小　麺300g　800円</text><text x="95" y="340">中　麺400g　900円</text><text x="95" y="366">大　麺500g　1000円</text>
+  <rect class="cl" x="540" y="156" width="300" height="250" rx="12"/>
+  <image href="../assets/img/board/tsukemen.png" x="555" y="168" width="130" height="98" preserveAspectRatio="xMidYMid slice"/>
+  <text class="t" x="700" y="200" style="font-size:18px">つけ麺</text><text class="s" x="700" y="222">濃厚つけダレ</text>
+  <rect class="cp" x="555" y="286" width="270" height="104" rx="8"/>
+  <text x="575" y="314">小　麺300g　900円</text><text x="575" y="340">中　麺400g　1000円</text><text x="575" y="366">大　麺500g　1100円</text>
+  <rect class="pill-c" x="380" y="196" width="140" height="26" rx="13"/><text class="pt" x="450" y="214" text-anchor="middle">② Collection</text>
+  <text class="s" x="450" y="240" text-anchor="middle">同じ形のカードが</text><text class="s" x="450" y="256" text-anchor="middle">何枚も</text>
+  <rect class="pill-p" x="380" y="322" width="140" height="26" rx="13"/><text class="pt" x="450" y="340" text-anchor="middle">③ Component</text>
+  <text class="s" x="450" y="366" text-anchor="middle">カードに付いた部品</text>
+  <!-- bottom collections -->
+  <rect class="cl" x="60" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="80" y="518">追加(有料)</text><text x="80" y="546">ライス ＋100円</text><text x="80" y="570">チャーシュー ＋200円</text>
+  <rect class="cl" x="500" y="490" width="340" height="92" rx="12"/>
+  <text class="t" x="520" y="518">無料トッピング</text><text x="520" y="546">ニンニク・ヤサイ・アブラ・カラメ</text><text x="520" y="570" class="s">量: ナシ / フツウ / マシ / マシマシ</text>
+  <!-- relations -->
+  <path class="rl" d="M210 406 L230 488"/><path class="rl" d="M210 406 L670 488"/>
+  <path class="rl" d="M690 406 L230 488"/><path class="rl" d="M690 406 L670 488"/>
+  <rect class="pill-r" x="380" y="424" width="140" height="26" rx="13"/><text class="pt" x="450" y="442" text-anchor="middle">④ Relation</text>
+</svg>
+<figcaption>メニュー表を4種類の入れ物に分けた様子。色がそのまま入れ物の種類です</figcaption>
+</figure>
+<table>
+<tr><th>入れ物</th><th>メニュー表では</th><th>一言で</th></tr>
+<tr><td>① Single Type</td><td>一番上の店名・営業時間</td><td>1つしかない情報</td></tr>
+<tr><td>② Collection Type</td><td>ラーメンのカード、つけ麺のカード…</td><td>同じ形で複数</td></tr>
+<tr><td>③ Component</td><td>カードの中の「小 800円 / 中 900円」</td><td>どこかに付いている部品</td></tr>
+<tr><td>④ Relation</td><td>メニューと追加メニュー・トッピングをつなぐ線</td><td>別に用意して線でつなぐ</td></tr>
+</table>
+<div class="key">選ぶ基準は3つの質問です。<strong>1つしかないか?</strong> → Single Type。<strong>複数を一覧で管理するか?</strong> → Collection Type。<strong>どこかに付いているか、複数箇所で共有するか?</strong> → 付いていれば Component、共有するなら Collection として別に作り Relation でつなぐ。</div>
+<details class="opt">
+<summary>なぜサイズは部品で、追加メニューは線(Relation)なのですか? <span class="skip">省略可</span></summary>
+<p>ラーメンの小は800円、つけ麺の小は900円のように、サイズの価格はメニューごとに違うので共有するものがありません → 各カードに付く部品にします。逆に「ライス ＋100円」はどのメニューに付いても同じです。1か所に書いて線でつなげば、値上げのときも1か所直すだけで済みます。</p>
+<figure>
+<svg class="dg" viewBox="0 0 900 230" role="img" aria-label="関係の種類">
+  <defs><style>.nd{fill:var(--card);stroke:var(--fg);stroke-width:1.5}.ln{stroke:#7048e8;stroke-width:2.2}</style></defs>
+  <text class="t" x="150" y="24" text-anchor="middle">1 対 1</text>
+  <rect class="nd" x="40" y="50" width="90" height="34" rx="8"/><text x="85" y="72" text-anchor="middle">社員 A</text>
+  <rect class="nd" x="40" y="110" width="90" height="34" rx="8"/><text x="85" y="132" text-anchor="middle">社員 B</text>
+  <rect class="nd" x="170" y="50" width="90" height="34" rx="8"/><text x="215" y="72" text-anchor="middle">社員証 1</text>
+  <rect class="nd" x="170" y="110" width="90" height="34" rx="8"/><text x="215" y="132" text-anchor="middle">社員証 2</text>
+  <path class="ln" d="M130 67H170M130 127H170"/>
+  <text class="s" x="150" y="180" text-anchor="middle">お互いにちょうど1つずつ</text>
+
+  <text class="t" x="450" y="24" text-anchor="middle">1 対 多</text>
+  <rect class="nd" x="330" y="90" width="100" height="34" rx="8"/><text x="380" y="112" text-anchor="middle">カテゴリ「麺」</text>
+  <rect class="nd" x="480" y="40" width="90" height="34" rx="8"/><text x="525" y="62" text-anchor="middle">ラーメン</text>
+  <rect class="nd" x="480" y="90" width="90" height="34" rx="8"/><text x="525" y="112" text-anchor="middle">つけ麺</text>
+  <rect class="nd" x="480" y="140" width="90" height="34" rx="8"/><text x="525" y="162" text-anchor="middle">油そば</text>
+  <path class="ln" d="M430 107L480 57M430 107H480M430 107L480 157"/>
+  <text class="s" x="450" y="210" text-anchor="middle">カテゴリ1つにメニューが複数(メニューはカテゴリ1つだけに属す)</text>
+
+  <text class="t" x="750" y="24" text-anchor="middle">多 対 多</text>
+  <rect class="nd" x="640" y="60" width="90" height="34" rx="8"/><text x="685" y="82" text-anchor="middle">ラーメン</text>
+  <rect class="nd" x="640" y="120" width="90" height="34" rx="8"/><text x="685" y="142" text-anchor="middle">つけ麺</text>
+  <rect class="nd" x="780" y="60" width="100" height="34" rx="8"/><text x="830" y="82" text-anchor="middle">ライス</text>
+  <rect class="nd" x="780" y="120" width="100" height="34" rx="8"/><text x="830" y="142" text-anchor="middle">チャーシュー</text>
+  <path class="ln" d="M730 77H780M730 77L780 137M730 137L780 77"/>
+  <text class="s" x="760" y="190" text-anchor="middle">両方とも複数とつながる</text>
+</svg>
+</figure>
+</details>
+<table>
+<tr><th>皆さんのサイトなら</th><th>Single</th><th>Collection</th><th>Component</th><th>Relation</th></tr>
+<tr><td>会社のホームページ</td><td>会社紹介</td><td>お知らせ、社員</td><td>社員の SNS リンク</td><td>お知らせ → 書いた社員</td></tr>
+<tr><td>ブログ</td><td>ブログ紹介</td><td>記事、タグ</td><td>記事内の関連リンク</td><td>記事 ↔ タグ</td></tr>
+</table>
+
+<h2>3. 管理画面で作る</h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>pnpm dev:db
+pnpm dev:cms   # → http://localhost:1337/admin</code></pre>
+<p>初回アクセスで管理者登録画面が出ます(ローカル専用アカウント)。登録後、左メニューの<strong>Content-Type Builder</strong>で入れ物を作り、フィールドを追加します。</p>
+<figure><img src="../assets/img/schema/06-field-types.png" alt="フィールド種類の選択"><figcaption>フィールドの種類を選ぶ画面。今回は Text, Number, Media, Enumeration, Relation, Component を使います</figcaption></figure>
+<p>今回作った入れ物とフィールドです。必須かどうかなどは、フィールドの<strong>ADVANCED SETTINGS</strong>で決めます。</p>
+<table>
+<tr><th>入れ物</th><th>フィールド</th></tr>
+<tr><td>Single <code>Shop</code></td><td>name(必須), catchphrase, address, closedDays, businessHours・ticketRule(複数行), photo(写真)</td></tr>
+<tr><td>Component <code>menu.size</code></td><td>label(small / medium / large から選択、必須), noodleGrams, price(必須)</td></tr>
+<tr><td>Component <code>menu.level</code></td><td>label(ナシ・フツウ… 必須)</td></tr>
+<tr><td>Collection <code>Topping</code></td><td>name(必須), description, levels(<code>menu.level</code> を複数)</td></tr>
+<tr><td>Collection <code>Extra</code></td><td>name(必須), price(必須), photo <small>(07章で soldOut を追加)</small></td></tr>
+<tr><td>Collection <code>Menu</code></td><td>name(必須), description, photo, sizes(<code>menu.size</code> を複数), extras・toppings(多対多 Relation)</td></tr>
+</table>
+<h3>迷いやすい点</h3>
+<p><strong>① 選択肢(Enumeration)の値は英字で。</strong> <code>小</code>をそのまま入れるとエラーになります。値はプログラムが使う識別子で、「小」という表示は画面(04章)側で付けます。</p>
+<figure><img src="../assets/img/schema/14-enum-error.png" alt="Enumeration のエラー"><figcaption>"Values should have at least one alphabetical character..."</figcaption></figure>
+<p><strong>② 部品を複数付けるには Repeatable。</strong> メニュー1つにサイズ3個、トッピング1つに量4個。</p>
+<p><strong>③ 線(Relation)の種類は文章で確認。</strong> アイコンを選ぶと、下に意味が文章で表示されます。</p>
+<figure><img src="../assets/img/schema/24-relation-many-to-many.png" alt="多対多の関係設定"><figcaption>"Menus has and belongs to many Extras": メニュー1つに追加メニューが複数、追加メニュー1つも複数のメニューに</figcaption></figure>
+<div class="note">Content-Type Builder は<strong>ローカル(開発モード)でしか</strong>使えません。本番ではロックされています。スキーマはローカルで変更し、Git でデプロイします。</div>
+
+<h2>4. 保存すると「ファイル」になる</h2>
+<p>左上の<strong>Save</strong>を押すと、Strapi が再起動しながら設計図ファイルを書き込みます。</p>
+<figure><img src="../assets/img/schema/26-saving.png" alt="再起動待ち"><figcaption>"Waiting for restart…": この間に Strapi がファイルを書き、DB にテーブルを作ります</figcaption></figure>
+<div class="files">
+  <div><code>apps/cms/src/api/&lt;入れ物&gt;/content-types/&lt;入れ物&gt;/schema.json</code><p>入れ物の設計図。画面で選んだフィールドがそのまま書かれる</p></div>
+  <div><code>apps/cms/src/api/&lt;入れ物&gt;/controllers・routes・services</code><p>API を作るコード。自動生成なので手を加えない</p></div>
+  <div><code>apps/cms/src/components/menu/*.json</code><p>部品(Component)の設計図</p></div>
+</div>
+<details class="opt">
+<summary><code>schema.json</code> の中身を見る <span class="skip">省略可</span></summary>
+<p class="file">apps/cms/src/api/menu/content-types/menu/schema.json</p>
+<pre><code>"sizes": {
+  "type": "component",
+  "component": "menu.size",
+  "repeatable": true
+},
+"extras": {
+  "type": "relation",
+  "relation": "manyToMany",
+  "target": "api::extra.extra",
+  "inversedBy": "menus"
+},
+"toppings": {
+  "type": "relation",
+  "relation": "manyToMany",
+  "target": "api::topping.topping",
+  "inversedBy": "menus"
+}</code></pre>
+<p>画面で選んだ「部品を複数」「多対多の線」が、そのまま JSON に書かれています。</p>
+</details>
+<div class="key"><strong>この研修の要点の1つ。</strong>この設計図ファイル(スキーマ)は Git → PR → 自動デプロイを経て本番に行き、本番の Strapi が起動するときにテーブルを作ります。しかし管理画面で入力した<strong>データ</strong>は、それぞれの環境の DB にしかなく、デプロイされません。</div>
+
+<h2>5. コミット</h2>
+<p class="where">実行場所: リポジトリのルート</p>
+<pre><code>git add .
+git commit -m "feat(cms): メニューのスキーマを追加"</code></pre>
+
+<nav class="pager"><a href="01-local-setup.html">← 01 ローカル環境</a><a href="03-data-and-api.html">03 データ・API →</a></nav>
+</main>
+</body>
+</html>

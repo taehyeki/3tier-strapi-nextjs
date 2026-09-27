@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 まとめ</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 08</div>
+  <h1>まとめ: 全体を1枚に、そして皆さんがやること</h1>
+  <p class="lead">00章から07章まで作ったものを一度に振り返ります。思ったより少ないコードで画面・バックエンド・DB を分け、自動検査と自動デプロイまでつなげました。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li><a href="06-deploy.html">06 CD・デプロイ</a></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li class="on"><span>08 まとめ</span></li></ol>
+</header>
+
+<h2>1. 何を作ったか</h2>
+<div class="flow">
+  <div><span class="tier front">フロントエンド</span><b>Next.js</b>お客様に見せる画面をサーバーで作る。API トークンはサーバーだけに</div>
+  <div class="arr">→</div>
+  <div><span class="tier back">バックエンド</span><b>Strapi</b>管理画面でデータ構造を作ると API が自動でできる</div>
+  <div class="arr">→</div>
+  <div><span class="tier db">DB</span><b>PostgreSQL</b>データを保管する。写真は S3 に</div>
+</div>
+<figure>
+<svg class="dg" viewBox="0 0 980 580" role="img" aria-label="AWS 構成図">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor" style="fill:var(--fg)"/></marker>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" style="fill:var(--accent)"/></marker>
+  </defs>
+  <!-- ユーザー -->
+  <rect class="box" x="10" y="190" width="118" height="70" rx="10"/><text class="t" x="69" y="220" text-anchor="middle">お客様</text><text class="s" x="69" y="240" text-anchor="middle">ブラウザ</text>
+  <rect class="box" x="10" y="330" width="118" height="70" rx="10"/><text class="t" x="69" y="360" text-anchor="middle">店のスタッフ</text><text class="s" x="69" y="380" text-anchor="middle">管理画面</text>
+  <!-- AWS Cloud -->
+  <rect class="grp" x="150" y="14" width="820" height="520" rx="4"/><image href="../assets/aws/AWSCloud.svg" x="150" y="14" width="32" height="32"/><text class="t" x="190" y="35">AWS クラウド(東京リージョン)</text>
+  <!-- CloudFront -->
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="198" width="48" height="48"/><text x="214" y="262" text-anchor="middle" class="s">CloudFront</text><text x="214" y="277" text-anchor="middle" class="s">(サイト用)</text>
+  <image href="../assets/aws/AmazonCloudFront.svg" x="190" y="338" width="48" height="48"/><text x="214" y="402" text-anchor="middle" class="s">CloudFront</text><text x="214" y="417" text-anchor="middle" class="s">(管理者用)</text>
+  <!-- VPC -->
+  <rect class="grp-vpc" x="300" y="56" width="530" height="440" rx="4"/><image href="../assets/aws/VirtualprivatecloudVPC.svg" x="300" y="56" width="32" height="32"/><text class="t" x="340" y="77">VPC(自分専用のネットワーク)</text>
+  <rect class="grp-pri" x="320" y="100" width="320" height="380" rx="4"/><image href="../assets/aws/Privatesubnet.svg" x="320" y="100" width="28" height="28"/><text class="t" x="354" y="119">Private サブネット</text><text class="s" x="354" y="135">インターネットから直接入れない</text>
+  <image href="../assets/aws/ElasticLoadBalancing.svg" x="345" y="268" width="48" height="48"/><text x="369" y="332" text-anchor="middle" class="s">ALB(内部)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="168" width="48" height="48"/><text x="549" y="232" text-anchor="middle" class="t">Next.js</text><text x="549" y="247" text-anchor="middle" class="s">Fargate(画面)</text>
+  <image href="../assets/aws/AWSFargate.svg" x="525" y="360" width="48" height="48"/><text x="549" y="424" text-anchor="middle" class="t">Strapi</text><text x="549" y="439" text-anchor="middle" class="s">Fargate(CMS・API)</text>
+  <rect class="grp-iso" x="660" y="300" width="155" height="180" rx="4"/><text class="t" x="672" y="320">Isolated サブネット</text><text class="s" x="672" y="336">アプリからのみアクセス</text>
+  <image href="../assets/aws/AmazonAurora.svg" x="713" y="368" width="48" height="48"/><text x="737" y="432" text-anchor="middle" class="t">Aurora</text><text x="737" y="447" text-anchor="middle" class="s">PostgreSQL</text>
+  <!-- VPC の外 -->
+  <image href="../assets/aws/AmazonSimpleStorageService.svg" x="872" y="120" width="48" height="48"/><text x="896" y="184" text-anchor="middle" class="s">S3(写真)</text>
+  <image href="../assets/aws/AWSSecretsManager.svg" x="872" y="250" width="48" height="48"/><text x="896" y="314" text-anchor="middle" class="s">Secrets</text><text x="896" y="328" text-anchor="middle" class="s">Manager</text>
+  <image href="../assets/aws/AmazonElasticContainerRegistry.svg" x="872" y="390" width="48" height="48"/><text x="896" y="454" text-anchor="middle" class="s">ECR</text><text x="896" y="468" text-anchor="middle" class="s">(アプリのイメージ)</text>
+  <!-- お客様の流れ -->
+  <path class="ar" d="M128 225 H186"/><circle class="num" cx="157" cy="210" r="10"/><text class="num-t" x="157" y="214" text-anchor="middle">1</text>
+  <path class="ar" d="M240 222 C290 222 300 290 341 292"/><circle class="num" cx="290" cy="240" r="10"/><text class="num-t" x="290" y="244" text-anchor="middle">2</text>
+  <path class="ar" d="M395 286 C450 286 470 192 521 192"/><circle class="num" cx="455" cy="222" r="10"/><text class="num-t" x="455" y="226" text-anchor="middle">3</text>
+  <path class="ar" d="M549 252 V356"/><circle class="num" cx="565" cy="300" r="10"/><text class="num-t" x="565" y="304" text-anchor="middle">4</text><text class="s" x="580" y="304">トークンで問い合わせ</text>
+  <path class="ar" d="M575 384 H709"/><circle class="num" cx="640" cy="370" r="10"/><text class="num-t" x="640" y="374" text-anchor="middle">5</text>
+  <path class="ar" d="M575 372 C700 340 780 200 868 150"/><circle class="num" cx="760" cy="238" r="10"/><text class="num-t" x="760" y="242" text-anchor="middle">6</text>
+  <!-- 管理者の流れ -->
+  <path class="ar2" d="M128 365 H186"/>
+  <path class="ar2" d="M240 362 C290 362 300 300 341 300"/>
+  <path class="ar2" d="M395 300 C450 310 470 384 521 384"/>
+  <!-- 層 -->
+  <text class="tier" x="270" y="560" text-anchor="middle">1層 Web(入口)</text>
+  <text class="tier" x="549" y="560" text-anchor="middle">2層 アプリ(処理)</text>
+  <text class="tier" x="810" y="560" text-anchor="middle">3層 データ(保存)</text>
+</svg>
+<figcaption>本番(AWS)の姿。入口(CloudFront・ALB)→ アプリ(Next.js・Strapi)→ データ(Aurora・S3)の3層</figcaption>
+</figure>
+<p>自分で書いたコードは、<strong>画面(page.tsx など数ファイル)</strong>と<strong>設定ファイル</strong>がほとんどです。データ構造と API は Strapi の管理画面でクリックして作りました。バックエンドを1から書かなくても、こうして役割を分けた構成を作れます。</p>
+
+<h2>2. 開発から本番まで</h2>
+<div class="flow">
+  <div><b>自分の PC</b>作って確認<small>01〜04章 ・ コミット直前の自動検査</small></div><div class="arr">→</div>
+  <div><b>PR</b>自動検査(CI)<small>05章 ・ 通過しないとマージ不可</small></div><div class="arr">→</div>
+  <div><b>マージ</b>main が変わる<small>05章</small></div><div class="arr">→</div>
+  <div class="hl"><b>自動デプロイ(CD)</b>イメージを一度ビルド → AWS に反映<small>06章</small></div><div class="arr">→</div>
+  <div><b>本番</b>データは本番の管理画面で<small>06・07章</small></div>
+</div>
+
+<h2>3. 章ごとにやったこと</h2>
+<table>
+<tr><th>章</th><th>やったこと</th><th>覚えておく1つ</th></tr>
+<tr><td>00 全体構成</td><td>完成した姿と流れ</td><td>フロント・バックエンド・DB はお店のホール・厨房・倉庫</td></tr>
+<tr><td>01 ローカル環境</td><td>1つのリポジトリに画面・CMS、DB はコンテナ</td><td>設定値は環境変数で。ローカルと本番は入れる場所だけが違う</td></tr>
+<tr><td>02 スキーマ</td><td>データの入れ物を設計</td><td>1つだけ? 複数? どこかに付いている? 共有している?</td></tr>
+<tr><td>03 データ・API</td><td>入力・公開、API トークン</td><td>API は最初は鍵がかかっている。トークンは読み取りだけ許可</td></tr>
+<tr><td>04 画面</td><td>サーバーでデータを取得して表示</td><td>トークンはサーバーだけに。型はスキーマから自動生成</td></tr>
+<tr><td>05 CI</td><td>コミット直前・PR のたびに自動検査、main の保護</td><td>検査を通過したコードだけが main に入る</td></tr>
+<tr><td>06 CD・デプロイ</td><td>マージすると AWS に自動デプロイ、本番の初期設定</td><td>イメージは一度作ってそのままデプロイ。GitHub に秘密の値を置かない</td></tr>
+<tr><td>07 変更を本番まで</td><td>小さな機能を1つ、最初から最後まで</td><td>スキーマはデプロイされ、データはデプロイされない</td></tr>
+</table>
+
+<h2>4. 人がやること、自動でやってくれること</h2>
+<table>
+<tr><th></th><th>人がやること</th><th>自動でやってくれること</th></tr>
+<tr><td><strong>最初の1回</strong></td><td>道具のインストール、リポジトリ設定(Ruleset)、AWS の土台(イメージ保管庫・ロール)、GitHub シークレット2つ</td><td>—</td></tr>
+<tr><td><strong>機能を変えるたび</strong></td><td>ローカルで作って確認 → PR → マージ</td><td>コミット直前の検査・型生成、PR の検査、イメージのビルド・検査、AWS へのデプロイ、無停止での切り替え</td></tr>
+<tr><td><strong>本番で</strong></td><td>データの入力・公開(初回デプロイ直後は管理者登録・API トークンも)</td><td>—</td></tr>
+</table>
+
+<h2>5. どこにでも通じる5つの原則</h2>
+<div class="cards">
+  <div class="card"><h4>秘密の値はコードの外に</h4><p>ローカルは <code>.env</code>(Git 除外)、本番は Secrets Manager。コード・イメージ・GitHub には残さない</p></div>
+  <div class="card"><h4>通行証はサーバーだけに</h4><p>API トークンは画面を作るサーバーだけが持つ。ブラウザには結果(HTML)だけ</p></div>
+  <div class="card"><h4>権限は必要な分だけ</h4><p>トークンは読み取りだけ、CI は読み取りだけ、GitHub の AWS ロールはやることが1つだけ</p></div>
+  <div class="card"><h4>検査を通過したものだけ main に</h4><p>人の記憶ではなく、機械の検査とリポジトリのルールで守る</p></div>
+  <div class="card"><h4>同じコードをすべての環境で</h4><p>ローカルと本番はコードが同じで、環境変数で入れる値だけが違う</p></div>
+</div>
+
+<h2>6. 皆さんがやること</h2>
+<p>ここまでラーメン店を例に、<strong>開発から本番デプロイまでの全体の流れ</strong>を見てきました。これを参考にして、<strong>皆さんが構想したインフラを土台に、自分だけの CMS サイトを開発してください。</strong></p>
+<ol class="steps">
+  <li><strong>テーマを決めて「画面に見せる情報」を書き出す</strong> → 3つの質問で入れ物を選ぶ(02章)</li>
+  <li><strong>ローカル環境を作る</strong>: 1つのリポジトリに画面・CMS、DB はコンテナ(01章)。皆さんの設計が MySQL なら、Strapi を MySQL で作っても構いません</li>
+  <li><strong>スキーマ → データ → トークン</strong>(02・03章)</li>
+  <li><strong>画面を作る</strong>: 受け取った値をどこに入れるかから(04章)。デザインは自由</li>
+  <li><strong>GitHub と CI をつなげる</strong>(05章)。会社のリポジトリで使える機能を先に確認</li>
+  <li><strong>皆さんのインフラにデプロイする</strong>(06章)。00章の「WordPress 前提の設計との違い」の表を見て設計に反映します: アプリ2つ、入口の振り分け、アプリ同士の通信、写真は S3</li>
+  <li><strong>小さな変更を本番まで送ってみる</strong>(07章)。流れが一周すれば完成です</li>
+</ol>
+<div class="key">行き詰まったらこのリポジトリを見てください。資料に出てくる設定はすべて、実際に動いたファイルそのままです: 画面 <code>apps/web/</code>、CMS <code>apps/cms/</code>、自動検査 <code>lefthook.yml</code>・<code>.github/workflows/ci.yml</code>、自動デプロイ <code>.github/workflows/deploy.yml</code>、AWS 構成 <code>infra/</code>。</div>
+
+<nav class="pager"><a href="07-change-to-production.html">← 07 変更を本番まで</a><a href="00-overview.html">00 全体構成へ →</a></nav>
+</main>
+</body>
+</html>

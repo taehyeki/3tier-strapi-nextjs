@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 CD・デプロイ</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 06 · <span class="tier ops">CI/CD</span></div>
+  <h1>CD: マージすると AWS に自動で反映されるようにする</h1>
+  <p class="lead">main が変わると自動で本番(AWS)に反映されるようにし、初回デプロイのあとの本番初期設定まで行います。AWS の構成は皆さんの設計を使えばよいので、ここでは<strong>デプロイの流れ</strong>と<strong>「設定値がどこから来るか」</strong>を中心に見ます。</p>
+  <ol class="chmap" aria-label="章マップ"><li><a href="00-overview.html">00 全体構成</a></li><li><a href="01-local-setup.html">01 ローカル環境</a></li><li><a href="02-strapi-schema.html">02 スキーマ</a></li><li><a href="03-data-and-api.html">03 データ・API</a></li><li><a href="04-nextjs-page.html">04 画面</a></li><li><a href="05-github-ci.html">05 CI</a></li><li class="on"><span>06 CD・デプロイ</span></li><li><a href="07-change-to-production.html">07 変更を本番まで</a></li><li><a href="08-summary.html">08 まとめ</a></li></ol>
+</header>
+
+<p class="goal">main にマージするとアプリのイメージが一度作られて保管され、そのイメージで AWS が更新される。本番の管理者登録・データ入力・API トークン設定まで終えて本番サイトを立ち上げる。</p>
+
+<h2>1. なぜ自動デプロイ(CD)が必要か</h2>
+<p>05章までで、「main には検査を通ったコードしかない」状態を作りました。ではそのコードを、誰がどうやって AWS に反映するのでしょうか。手でやる方法と比べてみます。</p>
+<table>
+<tr><th></th><th>手でデプロイ</th><th>自動デプロイ(CD)</th></tr>
+<tr><td>やり方</td><td>その都度 AWS コンソールを開き、新しいイメージを作って手順通りに反映</td><td>main にマージした瞬間、決まった手順が毎回同じ順で実行される</td></tr>
+<tr><td>手順を忘れたら</td><td>本番が古いまま、または途中の状態で止まる</td><td>手順自体がコードなので、抜け漏れが起きない</td></tr>
+<tr><td>何が本番で動いているか</td><td>デプロイした人の記憶やメモ頼み</td><td>本番のイメージにコミット番号が付くので、いつでも確認できる(4節)</td></tr>
+<tr><td>複数人での作業</td><td>誰かの PC の環境や手順の癖に依存</td><td>誰がマージしても同じ手順が走る</td></tr>
+</table>
+<div class="analogy">CI(05章)が「メニューに出す前の検品」なら、CD は「検品を通った料理を、決まった手順で毎回同じように客席まで運ぶ仕組み」です。運ぶ人によって手順が変わったり、運ぶのを忘れたりしないようにします。</div>
+<p>これが<strong>CD(Continuous Delivery/Deployment、継続的デリバリー/デプロイ)</strong>です。承認を挟めば Continuous Delivery、挟まなければ Continuous Deployment と呼ばれますが、どちらも「main の変更を、人手を介さず本番まで届ける仕組み」という点は同じです。</p>
+
+<h2>2. 全体の流れ</h2>
+<figure>
+<svg viewBox="0 0 860 230" width="100%" role="img" aria-label="CIとCDの流れ">
+  <style>.b{fill:var(--card);stroke:var(--line);stroke-width:1.5}.h{fill:color-mix(in srgb,var(--accent,#c2410c) 8%,var(--card));stroke:var(--accent,#c2410c);stroke-width:1.5}.a{fill:none;stroke:var(--accent,#c2410c);stroke-width:2;marker-end:url(#m6)}.t{fill:var(--fg);font-size:14px;font-weight:700}.s{fill:var(--muted);font-size:12px}</style>
+  <defs><marker id="m6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#c2410c)"/></marker></defs>
+  <rect class="b" x="10" y="20" width="170" height="150" rx="12"/>
+  <text class="t" x="24" y="46">PR(05章)</text>
+  <text class="s" x="24" y="72">ci.yml</text>
+  <text class="s" x="24" y="92">ビルド・検査のみ</text>
+  <text class="s" x="24" y="112">(どこにも上げない)</text>
+  <text class="s" x="24" y="152">通過しないとマージ不可</text>
+  <path class="a" d="M180,95 L220,95"/>
+  <rect class="h" x="220" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="234" y="46">① publish</text>
+  <text class="s" x="234" y="72">deploy.yml (main)</text>
+  <text class="s" x="234" y="92">ビルド → Trivy 検査</text>
+  <text class="s" x="234" y="112">→ ECR に push</text>
+  <text class="s" x="234" y="152">タグ = コミット SHA</text>
+  <path class="a" d="M420,95 L460,95"/>
+  <rect class="h" x="460" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="474" y="46">② deploy</text>
+  <text class="s" x="474" y="72">環境 3tier-prod</text>
+  <text class="s" x="474" y="92">cdk deploy</text>
+  <text class="s" x="474" y="112">-c imageTag=&lt;SHA&gt;</text>
+  <text class="s" x="474" y="152">ビルドはしない</text>
+  <path class="a" d="M660,95 L700,95"/>
+  <rect class="b" x="700" y="20" width="150" height="150" rx="12"/>
+  <text class="t" x="714" y="46">AWS</text>
+  <text class="s" x="714" y="72">インフラの変更を反映</text>
+  <text class="s" x="714" y="92">ECS が新イメージに</text>
+  <text class="s" x="714" y="112">切り替え(無停止)</text>
+  <text class="s" x="10" y="205">イメージは main で一度だけ作る。デプロイは「検査を通過したそのイメージ」を指すだけ(build once, deploy many)。</text>
+</svg>
+</figure>
+<p>原則は1つです。<strong>普段の AWS への変更は自動デプロイだけで行います。</strong>人が AWS を直接操作するのは、最初の1回だけの準備(4節)、本番初期設定の2行(8節)、後片付け(10節)だけです。</p>
+<div class="key">本番に送るアプリのイメージは main で<strong>一度だけ</strong>作り、検査を通過した<strong>そのイメージをそのまま</strong>デプロイします。イメージにはコミット番号(SHA)が付くので、本番でどのコミットが動いているか、いつでもわかります。</div>
+<details class="opt">
+<summary>PR で作ったイメージをそのまま使わない理由 <span class="skip">省略可</span></summary>
+<p>PR 段階のコードはまだマージ前なので、本番用の保管庫に上げる権限を与えません。また squash マージは main に<strong>新しいコミット</strong>を作るため、本番用イメージはそのコミットから作らないと記録が正確になりません。PR のビルドは「マージしてよいか」の検査、main のビルドは「本番に送る成果物」です。両方とも同じビルド手順を使います。</p>
+</details>
+
+<h2>3. AWS 構成は「スタック」3つに分けた</h2>
+<p>AWS の構成は<strong>CDK</strong>(AWS の構成を TypeScript コードで書く道具)で <code>infra/</code> に書きました。全体像は00章を見てください。コードはデプロイする単位(スタック)で3つに分けました。</p>
+<div class="cards">
+  <div class="card"><h4>① Foundation(土台)</h4><p>イメージ保管庫(ECR)、GitHub が AWS に入るときのロール(IAM)。<strong>人が最初に1回だけ</strong>作る。自動デプロイが<em>使う</em>ものなので、自動デプロイ自身では作れないため</p></div>
+  <div class="card"><h4>② Data(データ)</h4><p>ネットワーク(VPC)、DB(Aurora)、写真(S3)、秘密の値(Secrets Manager)。<strong>消すと元に戻せないもの</strong>なので削除保護を有効にする</p></div>
+  <div class="card"><h4>③ App(アプリ)</h4><p>入口(CloudFront, ALB)、コンテナ(ECS の web・cms)。いつ消して作り直してもよいもの。デプロイのたびに変わる側</p></div>
+</div>
+<details class="opt">
+<summary>なぜこう分けるのですか? <span class="skip">省略可</span></summary>
+<p>「データを持つものと持たないものを別スタックに」は CDK の公式ベストプラクティスです(<a href="https://docs.aws.amazon.com/cdk/v2/guide/best-practices.html">AWS CDK Best practices</a>)。アプリ側を何度作り直しても DB と写真は安全です。コード: <code>infra/bin/</code>(スタックの組み立て)、<code>infra/lib/</code>(層ごとのファイル)。</p>
+</details>
+
+<h2>4. 最初の1回だけ行う準備</h2>
+<p>自動デプロイが動く<strong>前に</strong>必要なものです。人が1回だけ行います。</p>
+<div class="note">会社の共有アカウントなら、まず管理者に確認してください: ① CDK の準備(bootstrap)は済んでいるか ② GitHub OIDC プロバイダー(アカウントに1つ)はあるか ③ 自分の権限で IAM ロールを作れるか。プロバイダーがなければ、土台スタックのデプロイに <code>-c useExistingOidcProvider=false</code> を付ければ一緒に作ります。複数人が同じアカウントにこの例をデプロイすると名前が衝突するので、スタック名(<code>infra/bin/*.ts</code>)とイメージ保管庫名(<code>infra/lib/shared.ts</code>, <code>deploy.yml</code>)に自分の接頭辞を付けます。</div>
+<div class="flow">
+  <div><b>① CDK の準備</b>アカウント・リージョンごとに1回<small>cdk bootstrap</small></div><div class="arr">→</div>
+  <div><b>② 土台スタック</b>イメージ保管庫 + ロール<small>自分の PC からデプロイ</small></div><div class="arr">→</div>
+  <div><b>③ GitHub 設定</b>Environment 1つ + シークレット2つ<small>②の出力値を登録</small></div>
+</div>
+<p class="where">実行場所: リポジトリのルート(AWS 認証情報のあるターミナル)</p>
+<pre><code>pnpm -F infra exec cdk bootstrap aws://&lt;アカウント ID&gt;/ap-northeast-1
+pnpm -F infra foundation deploy \
+  -c githubSubjectPrefix="$(gh api repos/&lt;owner&gt;/&lt;repo&gt;/actions/oidc/customization/sub --jq .sub_claim_prefix)"</code></pre>
+<p>②が終わるとロール名(ARN)が2つ出力されます。GitHub に登録します。</p>
+<table>
+<tr><th>GitHub シークレット</th><th>登録する場所</th><th>使う場所</th></tr>
+<tr><td><code>AWS_IMAGE_PUSH_ROLE_ARN</code></td><td>Settings → Secrets and variables → Actions</td><td>イメージを保管庫に上げるとき</td></tr>
+<tr><td><code>AWS_DEPLOY_ROLE_ARN</code></td><td>Settings → Environments → <code>3tier-prod</code>(新規作成)</td><td>AWS にデプロイするとき</td></tr>
+</table>
+<p>Environment <code>3tier-prod</code> を作るとき、<strong>Deployment branches and tags を「Selected」→ <code>main</code> のみ</strong>に制限します。これがないと、書き込み権限を持つ人が別のブランチでこの環境を指定し、デプロイ用ロールを借りられてしまいます。必ず設定してください。</p>
+
+<h3>GitHub が AWS に入る方法(OIDC)</h3>
+<div class="analogy">GitHub に AWS の鍵(アクセスキー)を預けません。代わりに実行のたびに、GitHub が「このリポジトリの、この作業です」という<strong>身分証</strong>を発行し、AWS は身分証が条件に合うときだけ<strong>1時間だけの訪問証</strong>を渡します。長く使う鍵がどこにもないので、盗まれるものがありません。</div>
+<table>
+<tr><th>ロール</th><th>誰が使えるか</th><th>できること</th></tr>
+<tr><td>イメージを上げる</td><td>main ブランチの作業だけ</td><td>イメージ保管庫に上げるだけ</td></tr>
+<tr><td>デプロイ</td><td>Environment <code>3tier-prod</code> の作業だけ</td><td>CDK でデプロイするだけ</td></tr>
+</table>
+<p>PR の作業はどちらのロールも使えず、環境は main でしか使えません。マージ前のコードが本番に触れないということです。</p>
+<details class="opt">
+<summary><code>githubSubjectPrefix</code> を API で受け取る理由 <span class="skip">省略可</span></summary>
+<p>2026-07-15 以降に作ったリポジトリは、身分証のリポジトリ表記が <code>owner@ID/repo@ID</code> のように数字の ID が付いた形式です(リポジトリを削除したあと誰かが同じ名前で作っても区別できるように)。推測して書くと <code>Not authorized to perform sts:AssumeRoleWithWebIdentity</code> で失敗します(この資料を作るときに実際に遭遇しました)。GitHub API がそのリポジトリの実際の形式を教えてくれるので、そのまま入れます。</p>
+</details>
+<details class="opt">
+<summary>デプロイ前に人の承認を受けたい場合 <span class="skip">省略可</span></summary>
+<p>Environment <code>3tier-prod</code> で<strong>Required reviewers</strong>(承認者)を設定すると、デプロイ直前に承認待ちで止まります。この例では承認なしで「マージ = デプロイ」としました。</p>
+</details>
+
+<h2>5. デプロイワークフローがやること</h2>
+<p><code>.github/workflows/deploy.yml</code>。main にマージされ、アプリ・インフラのファイルが変わったときに動きます(ドキュメントだけ変わったマージはデプロイしません)。</p>
+<table>
+<tr><th>段階</th><th>やること</th><th>かかる時間(この例)</th></tr>
+<tr><td>publish(web・cms 同時)</td><td>イメージをビルド → 脆弱性検査(05章と同じ手順)→ 保管庫(ECR)に上げる。タグ = コミット SHA</td><td>約5分</td></tr>
+<tr><td>deploy</td><td><code>cdk deploy</code>: インフラに変更があれば反映し、コンテナが新しいイメージを使うようにする。<strong>ビルドはしない</strong></td><td>普段は約5分(初回デプロイは DB・CloudFront を作るため約25分)</td></tr>
+<tr><td>ECS の切り替え</td><td>新しいコンテナが正常なことを確認してから古いものを落とす。新バージョンが立ち上がらなければ自動で旧バージョンに戻す</td><td>デプロイに含まれる</td></tr>
+</table>
+
+<h3>皆さんのインフラが CDK でないなら</h3>
+<p>コンソールで作った場合や EC2 で設計した場合も、流れは同じです。<strong>publish(イメージのビルド・検査・保管)はそのまま使い、deploy の最後の1段階だけ</strong>変えます。</p>
+<table>
+<tr><th>皆さんの構成</th><th>deploy でやること</th><th>ロールに必要な権限</th></tr>
+<tr><td>ECS(コンソールで作成)</td><td>新しいイメージタグでタスク定義を更新し、サービスを切り替える(公式アクション <code>aws-actions/amazon-ecs-deploy-task-definition</code>、または <code>aws ecs update-service</code>)</td><td>ECS のタスク定義・サービス更新</td></tr>
+<tr><td>EC2</td><td>サーバーに「新しいイメージを取得して再起動しろ」という命令を送る(SSM Run Command で <code>docker pull</code> → 再起動)</td><td>SSM コマンドの実行</td></tr>
+</table>
+<p>GitHub が OIDC でロールを借りる部分(4節)は、どの構成でも同じです。ロールの権限だけ上の表に合わせて絞ります。</p>
+
+<h2>6. 設定値はどこから来るか</h2>
+<p>アプリはローカルと本番で<strong>同じコード</strong>で、同じ名前の環境変数を読みます(01章)。値を入れる場所だけが違います。</p>
+<table>
+<tr><th>種類</th><th>例</th><th>ローカル</th><th>本番</th></tr>
+<tr><td>秘密でない値</td><td>接続先アドレス、写真バケット名</td><td><code>.env</code> / <code>.env.local</code></td><td>AWS 構成コード(CDK)が埋めてコンテナに渡す</td></tr>
+<tr><td>秘密の値</td><td>DB パスワード、Strapi の鍵、API トークン</td><td><code>.env</code> / <code>.env.local</code></td><td><strong>Secrets Manager</strong> に保管 → コンテナ起動時に ECS が取り出して渡す</td></tr>
+</table>
+<div class="key">本番の秘密の値は<strong>AWS がランダムに作ります</strong>(DB パスワード、Strapi の鍵)。人が値を見たり運んだりすることはなく、<strong>GitHub にはアプリの秘密の値が1つもありません。</strong>例外は API トークンだけで、本番の Strapi が起動していないと発行できないため、初回デプロイのあとに入れます(8節)。</div>
+
+<h2>7. 本番でだけ使う Strapi の設定</h2>
+<p><code>apps/cms/config/env/production/</code> のファイルは、本番でだけ既定の設定の上に上書きします。ローカル開発には影響しません。</p>
+<table>
+<tr><th>設定</th><th>なぜ必要か</th></tr>
+<tr><td>写真を S3 に保存</td><td>コンテナのディスクは再起動すると消える。S3 へのアクセスはコードに鍵を書かず AWS のロールで行う</td></tr>
+<tr><td>管理画面の公開アドレス、「HTTPS で来た」を Strapi に伝える</td><td>CloudFront → ALB を経由して入るため。ないと管理者ログインのクッキーが安全に設定されない</td></tr>
+<tr><td>管理画面が S3 の写真を表示できるよう許可</td><td>既定の設定は自分のアドレスの画像しか許可しない</td></tr>
+<tr><td>DB 接続の暗号化 + 相手の確認</td><td>本番 DB は暗号化されていない接続を拒否する。AWS 公式証明書をイメージに入れて「本物の AWS の DB か」を確認する</td></tr>
+</table>
+<p>全体: <code>apps/cms/config/env/production/</code>、<code>apps/cms/src/middlewares/cloudfront-proto.ts</code>、<code>apps/cms/Dockerfile</code>。web はヘルスチェック用の <code>/healthz</code> だけ追加しました。</p>
+
+<h2>8. 初回デプロイと本番の初期設定</h2>
+<p>この章の変更を PR で上げてマージすると、デプロイが始まります。</p>
+<figure><img src="../assets/img/deploy/actions-run.png" alt="デプロイ実行画面。publish(web・cms)が終わると deploy が続けて動く"><figcaption>デプロイ実行画面。publish(web・cms)が終わると deploy が続けて動く</figcaption></figure>
+<p>deploy が終わると、ログの最後に<strong>サイトのアドレス</strong>(SiteUrl)、<strong>管理画面のアドレス</strong>(AdminUrl)、API トークンを入れるシークレット名などが出力されます。続けて3つのことを行います。</p>
+<p>③を行う前は、サイトが<strong>エラー画面であるのが正常</strong>です(web が持つトークンがまだ仮のもので、Strapi が拒否するため)。デプロイの失敗ではありません。</p>
+<div class="flow">
+  <div class="hl"><b>① 管理者登録</b>デプロイ直後すぐに<small>最初にアクセスした人が最高管理者になるため</small></div><div class="arr">→</div>
+  <div><b>② データ入力</b>03章と同じ方法<small>本番 DB は空</small></div><div class="arr">→</div>
+  <div><b>③ API トークン</b>発行 → 保管 → web 再起動<small>web が新トークンを読むように</small></div>
+</div>
+<figure><img src="../assets/img/deploy/admin-register.png" alt="本番管理画面の最初の画面。この画面が出ている間は誰でも最高管理者として登録できる"><figcaption>本番管理画面の最初の画面。この画面が出ている間は誰でも最高管理者として登録できる</figcaption></figure>
+<p>③は03章と同じ設定(Custom、読み取りのみ)で<strong>本番の Strapi から</strong>発行します。ローカルのトークンはローカルの DB にしかなく、本番では使えません。</p>
+<p class="where">実行場所: どこでも(AWS 認証情報のあるターミナル)</p>
+<pre><code>read -rs TOKEN   # トークンを貼り付け(画面・コマンド履歴に残らないように)
+aws secretsmanager put-secret-value --secret-id &lt;ApiTokenSecretName&gt; --secret-string "$TOKEN"
+aws ecs update-service --cluster &lt;ClusterName&gt; --service &lt;WebServiceName&gt; --force-new-deployment</code></pre>
+<p>ECS は秘密の値をコンテナ起動時にしか読まないので、web を再起動します。最初の1回の準備と後片付けを除けば、普段の運用中に人が AWS を直接操作するのは<strong>この2行だけ</strong>です(秘密の値はもともとコードの外で管理するものなので)。</p>
+<figure><img src="../assets/img/deploy/site.png" alt="本番サイト。04章のローカル画面と同じコードが、本番の管理画面で入力したデータで表示される"><figcaption>本番サイト。04章のローカル画面と同じコードが、本番の管理画面で入力したデータで表示される</figcaption></figure>
+
+<h2>9. デプロイが失敗したとき</h2>
+<p>失敗したデプロイは自動で以前の状態に戻るので、サイトはそのままです。本番を直接直さず、<strong>コードを直して同じ流れ(PR → マージ)で再度送ります。</strong>コードの問題ではなく一時的な失敗なら、Actions 画面で<strong>Re-run</strong>すれば構いません(同じコミットのイメージがすでにあればビルドは飛ばされます)。この資料を作る際も、初回デプロイで2回失敗しました。</p>
+<table>
+<tr><th>症状(どこで見るか)</th><th>原因</th></tr>
+<tr><td>publish が <code>Not authorized to perform sts:AssumeRoleWithWebIdentity</code>(Actions のログ)</td><td>ロールの条件と GitHub の身分証の形式が違う(4節)</td></tr>
+<tr><td>deploy が <code>Invalid rule description</code>(CloudFormation コンソール → スタック → イベント)</td><td>AWS に送った説明文に使えない文字(<code>&gt;</code>)。AWS へ送る名前・説明は英語で</td></tr>
+<tr><td>deploy が長時間かかったあと失敗(ECS コンソール → サービス → イベント・ログ)</td><td>新しいコンテナがヘルスチェックを通過できない(設定値、DB 接続など)。CloudWatch Logs のアプリログを見る</td></tr>
+</table>
+
+<h2>10. 費用と後片付け</h2>
+<p>この構成は動かしているだけで料金がかかります(東京リージョン、2026-09 時点で概算<strong>月 $150、1日 $5</strong>)。大きい項目は DB(Aurora、約$55)、NAT Gateway(約$49)、コンテナ(約$27)、ALB(約$18)です。</p>
+<details class="opt">
+<summary>消す方法(アプリ → データ → 土台の順)<span class="skip">省略可</span></summary>
+<p class="where">実行場所: リポジトリのルート(AWS 認証情報のあるターミナル)</p>
+<pre><code>pnpm -F infra exec cdk destroy ThreeTierApp -c imageTag=-
+# データスタックは削除保護を解除してから消す(DB は最後のスナップショットが残る)
+aws cloudformation update-termination-protection --no-enable-termination-protection --stack-name ThreeTierData
+pnpm -F infra exec cdk destroy ThreeTierData -c imageTag=-
+pnpm -F infra foundation destroy -c githubSubjectPrefix=-</code></pre>
+<p>残った DB スナップショットが不要なら RDS コンソールで消します。</p>
+</details>
+
+<h2>11. コミット</h2>
+<p>main のコミットは PR タイトルそのままです。初回デプロイで見つかった問題(9節)は別のコミットで直しました。</p>
+<pre><code>feat: AWS へのデプロイ(CDK 3 スタックと、main で 1 回だけビルドする CD)
+fix(infra): 初回デプロイで見つかった問題を修正(OIDC の subject 形式、SG ルールの説明文)</code></pre>
+
+<nav class="pager"><a href="05-github-ci.html">← 05 CI</a><a href="07-change-to-production.html">07 変更を本番まで →</a></nav>
+</main>
+</body>
+</html>
