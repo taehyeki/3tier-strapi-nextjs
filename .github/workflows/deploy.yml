@@ -1,0 +1,116 @@
+# main にマージされると本番(AWS)に反映する(CD)
+#   publish: イメージをビルド・検査して ECR に上げる(タグ = コミット SHA)。イメージはここで一度だけ作る
+#   deploy : cdk deploy でインフラを反映し、ECS がいま上げたイメージに切り替わるようにする(ここではビルドしない)
+# 先に必要なもの: 土台スタック(ECR・IAM ロール、infra/bin/foundation.ts)と GitHub シークレット2つ(06章)
+# アクションは ci.yml と同じ理由でコミット SHA に固定する
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    # アプリ・インフラが変わったときだけデプロイする(ドキュメントだけ変わったマージはデプロイしない)
+    paths:
+      - "apps/**"
+      - "infra/**"
+      - "!infra/bin/foundation.ts" # 土台スタックは CI/CD ではなくローカルからデプロイする
+      - "!infra/lib/foundation-stack.ts"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/actions/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: # 必要なときに Actions 画面から手動でも実行できる(main でしか動かない)
+
+# デプロイは一度に1つだけ。進行中のデプロイは取り消さない(途中で止めるとスタックが中途半端な状態になりうる)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ap-northeast-1
+  IMAGE_TAG: ${{ github.sha }} # イメージタグ = コミット SHA(本番で動いているイメージがどのコミットかすぐわかる)
+
+jobs:
+  publish:
+    name: publish (${{ matrix.app }})
+    if: github.ref == 'refs/heads/main' # 他のブランチで手動実行しても動かないように
+    # 本番(Fargate ARM64)と同じ CPU のランナーでエミュレーションなしにビルドする
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # GitHub が発行する OIDC トークンを受け取るため(AWS 認証。アクセスキーは使わない)
+      security-events: write # 検査結果を Security タブに上げるため
+    strategy:
+      fail-fast: true # 1つでも失敗したらデプロイしないので、残りも止める
+      matrix:
+        app: [web, cms]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # イメージを上げる専用のロールを借りる(main ブランチの job だけが使えるロール。リポジトリシークレット)
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_IMAGE_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true # public リポジトリのログにアカウント ID が出ないように
+      # このランナーの Docker が ECR に push できるようログインする(job が終われば自動でログアウト)
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+      - id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REPOSITORY: 3tier/${{ matrix.app }} # infra/lib/shared.ts の imageRepositoryName と同じ名前
+        run: |
+          echo "ref=${REGISTRY}/${REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          # 同じコミットのイメージがすでにあれば(ワークフローを再実行した場合)ビルドしない。タグは上書きできない(IMMUTABLE)
+          if aws ecr describe-images --repository-name "$REPOSITORY" --image-ids imageTag="$IMAGE_TAG" > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+      # ビルド → Trivy 検査(ci.yml と同じ手順)。検査を通過したイメージだけが次のステップで上がる
+      - if: steps.image.outputs.exists != 'true'
+        uses: ./.github/actions/build-image
+        with:
+          app: ${{ matrix.app }}
+          image: ${{ steps.image.outputs.ref }}
+      - if: steps.image.outputs.exists != 'true'
+        env:
+          IMAGE: ${{ steps.image.outputs.ref }}
+        run: docker push "$IMAGE"
+
+  deploy:
+    needs: publish
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04 # ビルドしないので通常のランナーで十分
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    # この環境の保護ルールを通過しないと job が始まらない(承認者を設定しておけば、ここで承認待ちになる)。
+    # AWS 側のデプロイ用ロールも、この環境の job だけを信頼する
+    environment:
+      name: 3tier-prod
+      url: ${{ steps.deploy.outputs.site-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          cache: true
+          require-lockfile: true
+      # デプロイ専用のロールを借りる(3tier-prod 環境の job だけが使えるロール。環境シークレット)
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
+      # データスタック → アプリスタックの順で反映する。変わっていないスタックは何もしない
+      - id: deploy
+        run: |
+          pnpm -F infra exec cdk deploy --all -c imageTag="$IMAGE_TAG" --require-approval never --outputs-file cdk-outputs.json
+          echo "site-url=$(jq -r '.ThreeTierApp.SiteUrl' infra/cdk-outputs.json)" >> "$GITHUB_OUTPUT"
