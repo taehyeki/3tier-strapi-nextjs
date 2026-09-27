@@ -64,6 +64,21 @@
 - 배포 시점: **main 에 머지(push)되는 순간 배포 워크플로 시작 → `environment: production` 의 승인 후 실행** — GitHub 공식 문서의 배포 패턴
   (push main + environment 보호 규칙, OIDC). 승인이 있으면 Continuous Delivery, 없으면 Continuous Deployment. / 버린 대안: 태그·릴리스 기준 배포(릴리스 주기가 있는 제품용),
   수동 실행(workflow_dispatch)만(자동화 체험이 안 됨), staging → prod 승격(환경 1개라 해당 없음).
+- `[변경→재변경]` GitHub OIDC 역할: 콘솔 수동 → 담당자가 모범 사례를 물어 **CDK 스택(`ThreeTierGithubOidc`)을 로컬에서 1회 배포**로 확정(2026-09-27). 공급자는 계정당 1개라 기존 것을 import. 이전 기록: CDK 스택으로 만들지 않음 — 계정당 1회, 연수자도 회사에서 손으로 만든다.
+  OIDC 공급자(token.actions.githubusercontent.com)는 계정에 이미 있음. 역할: 신뢰 = 이 저장소 + Environment `3tier-prod` 의 job 만, 권한 = `cdk-hnb659fds-*` 역할로 AssumeRole 만.
+  역할 ARN 은 GitHub Environment 시크릿 `AWS_ROLE_ARN`. 로그의 계정 ID 는 `mask-aws-account-id: true`.
+- `[변경→재변경]` NAT → VPC 엔드포인트로 정했다가 **NAT Gateway 1개로 되돌림**(2026-09-27 담당자: 단순함 우선, 엔드포인트는 서비스를 빠뜨리면 배포 후에야 드러남). S3 게이트웨이 엔드포인트(무료)는 유지. 이전 검토: 앱이 인터넷으로 나갈 길이 없는 구성. 인터페이스 4개(ecr.api, ecr.dkr, secretsmanager, logs) + S3 게이트웨이.
+  도쿄 단가(Pricing API): NAT $0.062/h(월 약 $45) vs 엔드포인트 $0.014/h×8(월 약 $82). public 서브넷은 VPC Origin 필수 조건(IGW)이라 남김. Strapi 사용 통계 전송은 STRAPI_TELEMETRY_DISABLED=true.
+- 운영 이미지: **CDK `fromAsset` 이 배포 때 빌드(간단한 방법, 담당자 결정)**. 대신 CI 의 image job 을 ARM 러너로 옮겨 검사 대상과 운영의 CPU 종류를 일치시킴.
+  / 버린 대안: CI 에서 ARM64 빌드 → Trivy → ECR(커밋 SHA 태그) → 그 태그로 배포(build once — 검사한 것 = 운영이지만 ECR 선행 생성·CI 의 AWS 권한 등 단계 증가).
+- 리전은 bin/app.ts 에서 도쿄 고정(`-c region=` 로 변경 가능). 자격 증명 없는 합성에서 us-east-1 이 되던 문제 방지.
+- 06장 인프라 설계(2026-09-27, 공식 문서 확인): 스택 1개 + 층별 Construct 파일(network/database/media-bucket/app-secrets/load-balancer/cdn/cms-service/web-service/app-image).
+  CloudFront ×2 + VPC Origin → 내부 ALB(포트 80=web, 1337=cms). ALB 인바운드는 VPC Origin 전용 SG(커스텀 리소스로 조회)만. web→cms 는 ALB:1337.
+  ECS Fargate ARM64(배포는 ubuntu-24.04-arm 러너에서 네이티브 빌드), circuit breaker rollback, minHealthyPercent 100.
+  Aurora SV2 PG 17.10(CLI 의 CFN 스키마가 17.11 미지원) 0.5–2 ACU(자동 일시정지는 Strapi 커넥션 풀 때문에 효과 없고 첫 접속 지연 → 미사용), rds.force_ssl=1,
+  Strapi 는 이미지에 넣은 RDS CA 묶음(체크섬 고정, NODE_EXTRA_CA_CERTS)으로 검증. S3 비공개 + CloudFront OAC `/uploads/*`(presigned 아님, 공개 사진이므로).
+  Strapi 운영 설정은 config/env/production/*(로컬 영향 없음). HTTPS 판별은 CloudFront-Forwarded-Proto → 작은 미들웨어(ALB 가 X-Forwarded-Proto 를 http 로 붙이므로) → 관리자 쿠키 Secure.
+  이미지 빌드 범위는 루트 패키지 3개 + 그 앱 폴더만(루트 목록을 읽어 나머지 제외) → 문서·다른 앱 변경으로 재배포 안 됨.
 - 모든 작업은 **최신 공식 문서 근거**로: Context7(claude.ai 커넥터), AWS MCP(문서 검색·읽기), WebFetch 로 확인하고 출처를 노트에 남긴다(담당자 재강조 2026-09-27).
 - CI 장 문서 방침: "이 장에서 하는 것 / 하지 않는 것(자동 테스트·성능·미리보기 배포)"을 명시. 플랜 배지 대신 "public 기준, private 은 플랜에 따라 안 될 수 있음" 한 번.
 

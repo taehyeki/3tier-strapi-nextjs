@@ -1,0 +1,54 @@
+# main 에 머지되면 AWS 에 배포한다 (CD). 3tier-prod 환경의 승인을 받은 뒤에만 실행된다
+# 액션은 ci.yml 과 같은 이유로 커밋 SHA 로 고정한다
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    # 앱·인프라가 바뀌었을 때만 배포 (문서만 바뀐 머지는 배포하지 않는다)
+    paths:
+      - "apps/**"
+      - "infra/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch: # 필요할 때 Actions 화면에서 수동으로도 실행
+
+# 배포는 한 번에 하나씩. 진행 중인 배포는 취소하지 않는다 (중간에 끊으면 스택이 어중간한 상태가 될 수 있다)
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # GitHub 가 발급하는 OIDC 토큰을 받기 위해 (AWS 인증에 쓴다. 액세스 키는 쓰지 않는다)
+
+jobs:
+  deploy:
+    # 운영(Fargate ARM64)과 같은 CPU 의 러너에서 이미지를 에뮬레이션 없이 빌드한다
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    # 이 환경의 보호 규칙(승인)을 통과해야 job 이 시작된다. AWS 쪽 IAM 역할도 이 환경의 job 만 믿는다
+    environment:
+      name: 3tier-prod
+      url: ${{ steps.deploy.outputs.site-url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          cache: true
+          require-lockfile: true
+      # OIDC 로 AWS 의 IAM 역할(infra/lib/github-oidc-stack.ts)을 빌린다. 역할 ARN 은 환경 시크릿에 둔다
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-1
+          mask-aws-account-id: true # public 저장소의 로그에 계정 ID 가 보이지 않게
+      # 인프라와 앱(이미지 빌드 → ECR → ECS)을 한 번에 반영한다. 바뀐 것이 없으면 아무것도 하지 않는다
+      - id: deploy
+        run: |
+          pnpm -F infra exec cdk deploy ThreeTierApp --require-approval never --outputs-file cdk-outputs.json
+          echo "site-url=$(jq -r '.ThreeTierApp.SiteUrl' infra/cdk-outputs.json)" >> "$GITHUB_OUTPUT"

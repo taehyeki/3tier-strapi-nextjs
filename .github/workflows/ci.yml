@@ -33,6 +33,8 @@ jobs:
           require-lockfile: true
       - run: pnpm exec biome ci
       - run: pnpm typecheck
+      # 인프라 코드(CDK)가 CloudFormation 템플릿으로 변환되는지 확인 (AWS 에는 접속하지 않음)
+      - run: pnpm -F infra exec cdk synth --quiet
 
   # 시크릿(비밀번호·토큰)이 커밋 히스토리에 들어가지 않았는지
   secrets:
@@ -47,7 +49,8 @@ jobs:
 
   # 운영과 같은 Docker 이미지를 빌드하고, 이미지 안의 알려진 취약점을 검사
   image:
-    runs-on: ubuntu-24.04
+    # 운영(Fargate ARM64)과 같은 CPU 의 러너에서 빌드해, 운영과 같은 종류의 이미지를 검사한다
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     permissions:
       contents: read

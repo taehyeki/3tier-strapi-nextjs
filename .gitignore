@@ -10,6 +10,7 @@ out/
 
 # CDK
 infra/cdk.out/
+infra/cdk-outputs.json
 cdk.context.json.bak
 
 # 환경변수 (절대 커밋하지 않는다. 예시는 .env.example 로)

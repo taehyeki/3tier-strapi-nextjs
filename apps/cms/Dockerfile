@@ -33,6 +33,11 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=1337
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
     /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 COPY --from=build --chown=node:node /out ./
+# AWS 의 DB(Aurora)에 SSL 로 접속할 때 서버 인증서를 검증하기 위한 AWS 공식 인증서 묶음.
+# 신뢰의 기준이 되는 파일이므로 내용(체크섬)을 고정한다. Node 는 NODE_EXTRA_CA_CERTS 로 이 파일을 추가로 믿는다
+ADD --chmod=644 --checksum=sha256:e5bb2084ccf45087bda1c9bffdea0eb15ee67f0b91646106e466714f9de3c7e3 \
+    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /etc/ssl/certs/rds-global-bundle.pem
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/rds-global-bundle.pem
 # Strapi 는 시작할 때 업로드 폴더가 있는지 확인한다 (.gitkeep 은 이미지에 들어가지 않으므로 만든다)
 RUN mkdir -p public/uploads && chown node:node public/uploads
 # root 가 아닌 사용자로 실행 (컨테이너가 뚫려도 피해를 줄인다)
