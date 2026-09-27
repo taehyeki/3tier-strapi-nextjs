@@ -11,48 +11,54 @@
 <header class="chapter">
   <div class="no">CHAPTER 01</div>
   <h1>로컬 개발환경 만들기</h1>
-  <p class="lead">빈 폴더에서 시작해서 Next.js · Strapi · PostgreSQL이 내 PC에서 모두 뜨는 상태까지 만듭니다. 이 장의 명령과 파일을 순서대로 따라 하면 누구나 같은 결과가 나옵니다.</p>
+  <p class="lead">빈 폴더에서 시작해서 Next.js · Strapi · PostgreSQL이 내 PC에서 모두 뜨는 상태까지 만듭니다. 생성기(create-strapi, create-next-app)가 대부분을 만들어 주므로, 이 장은 <strong>생성 명령과 직접 정하는 설정</strong>을 중심으로 설명합니다.</p>
 </header>
 
 <p class="goal"><code>http://localhost:3000</code>(Next.js)과 <code>http://localhost:1337/admin</code>(Strapi)이 열리고, Strapi가 Docker의 PostgreSQL에 연결된 상태를 만든다.</p>
 
-<h2>진행 지도</h2>
-<table>
-<tr><th>단계</th><th>하는 일</th><th>끝나면</th></tr>
-<tr><td>0</td><td>도구 준비</td><td>명령어 5개가 동작</td></tr>
-<tr><td>1</td><td>저장소 뼈대</td><td>설정 파일 5개가 있는 폴더</td></tr>
-<tr><td>2</td><td>DB 컨테이너</td><td>PostgreSQL 실행 중</td></tr>
-<tr><td>3</td><td>Strapi 설치</td><td>관리자 화면이 열림</td></tr>
-<tr><td>4</td><td>Next.js 설치</td><td>초기 화면이 열림</td></tr>
-<tr><td>5</td><td>코드 검사 도구와 첫 커밋</td><td>01장 완료</td></tr>
-</table>
+<h2>이 장에서 만드는 것</h2>
+<div class="state"><div class="h">📁 01장 완료 시점 (주요 파일만)</div><pre>3tier-strapi-nextjs/
+├── .nvmrc               Node 버전 고정 (24)
+├── package.json         자주 쓰는 명령 모음, pnpm 버전 고정
+├── pnpm-workspace.yaml  apps/* 를 하나의 작업공간으로 + 설치 보안 설정
+├── compose.yaml         로컬 DB (PostgreSQL 컨테이너)
+├── biome.json           코드 검사 규칙 (web·cms 공통)
+├── .gitignore  .editorconfig
+└── apps/
+    ├── cms/             Strapi (:1337)   ← create-strapi 가 생성
+    └── web/             Next.js (:3000)  ← create-next-app 이 생성</pre></div>
+<p>화면(web)과 CMS(cms)를 <strong>하나의 저장소</strong>에서 관리합니다(<em>모노레포</em>). "스키마 변경 + 화면 변경"을 한 번에 리뷰하고 배포할 수 있습니다.</p>
 
 <!-- ============================================================ -->
-<h2>0. 도구 준비</h2>
+<h2>1. 도구 준비</h2>
 <table>
 <tr><th>도구</th><th>용도</th><th>설치</th><th>확인 명령</th></tr>
 <tr><td>Node.js 24</td><td>Next.js와 Strapi를 실행합니다</td><td><a href="https://github.com/nvm-sh/nvm">nvm</a>으로 <code>nvm install 24</code></td><td><code>node -v</code> → <code>v24.x.x</code></td></tr>
 <tr><td>pnpm 12</td><td>패키지를 설치하고 관리합니다</td><td>Node 설치 후 <code>npx get-pnpm</code> → <strong>터미널을 새로 열기</strong></td><td><code>pnpm -v</code> → <code>12.x.x</code></td></tr>
 <tr><td>Docker</td><td>DB를 컨테이너로 실행합니다</td><td>Docker Desktop 등</td><td><code>docker compose version</code></td></tr>
 <tr><td>Git</td><td>버전을 관리합니다</td><td>OS 기본 또는 공식 사이트</td><td><code>git --version</code></td></tr>
-<tr><td>에디터</td><td>코드를 편집합니다</td><td>VS Code 권장</td><td></td></tr>
 </table>
 
 <!-- ============================================================ -->
-<h2>1. 저장소 뼈대</h2>
-<p>화면(web)과 CMS(cms)를 <strong>하나의 저장소</strong>에서 관리합니다(<em>모노레포</em>). "스키마 변경 + 화면 변경"을 한 번에 리뷰하고 배포할 수 있습니다.</p>
+<h2>2. 저장소 뼈대</h2>
 <p class="where">실행 위치: 작업용 폴더 (예: <code>~/work</code>)</p>
 <pre><code>mkdir 3tier-strapi-nextjs
 cd 3tier-strapi-nextjs
 git init -b main
 mkdir apps</code></pre>
-<p>이어서 아래 5개 파일을 <strong>저장소 루트</strong>에 만듭니다. 내용을 그대로 복사해 붙여 넣으세요.</p>
-
-<p class="file">.nvmrc</p>
-<pre><code>24</code></pre>
-<p>Node 버전을 고정합니다. 팀원, CI, 배포 환경이 모두 같은 버전을 씁니다. 폴더에서 <code>nvm use</code>를 실행하면 이 버전으로 바뀝니다.</p>
-
-<p class="file">pnpm-workspace.yaml</p>
+<p>루트에 설정 파일 5개를 둡니다. 핵심은 두 가지입니다.</p>
+<p><strong>① 버전을 고정한다.</strong> <code>.nvmrc</code>(Node 24)와 <code>package.json</code>의 <code>packageManager</code>(pnpm 버전)로, 내 PC·팀원·CI·배포 환경이 모두 같은 버전을 씁니다.</p>
+<p><strong>② 자주 쓰는 명령을 루트에 모은다.</strong> <code>pnpm dev:cms</code> = "cms 앱의 develop 명령 실행"처럼, 어느 앱이든 루트에서 실행합니다.</p>
+<pre><code>  "scripts": {
+    "dev:db": "docker compose up -d --wait",
+    "dev:cms": "pnpm -F cms develop",
+    "dev:web": "pnpm -F web dev",
+    "lint": "biome check",
+    "format": "biome check --write",
+    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -r build"
+  },</code></pre>
+<p><code>pnpm-workspace.yaml</code>은 <code>apps/</code> 아래의 폴더를 하나의 작업공간으로 묶고, 설치할 때의 보안 설정을 적는 파일입니다.</p>
 <pre><code>packages:
   - apps/*
   - infra
@@ -64,94 +70,22 @@ allowBuilds:
   "@swc/core": false
   core-js-pure: false
   esbuild: false</code></pre>
-<p><code>apps/</code> 아래의 폴더와 <code>infra</code>(나중에 만듦)를 하나의 작업공간으로 묶습니다.</p>
 <details>
 <summary>pnpm이 막아 주는 두 가지 (공급망 공격 방지)</summary>
 <p><strong>공급망 공격</strong>은 누군가 유명 패키지에 악성 코드를 섞어 공개하고, 그걸 설치한 PC나 서버에서 코드가 실행되게 하는 공격입니다. pnpm 12는 기본 설정으로 두 가지를 막습니다.</p>
 <table>
 <tr><th>막는 것</th><th>내용</th></tr>
-<tr><td>설치할 때 스크립트 실행</td><td>위의 <code>allowBuilds</code>에서 허용한 패키지만 스크립트를 실행합니다. 새 패키지를 추가했는데 <code>ERR_PNPM_IGNORED_BUILDS</code>가 나오면, 그 패키지를 여기에 적고 <code>true</code>/<code>false</code>를 정합니다</td></tr>
+<tr><td>설치할 때 스크립트 실행</td><td><code>allowBuilds</code>에서 허용한 패키지만 스크립트를 실행합니다. 새 패키지를 추가했는데 <code>ERR_PNPM_IGNORED_BUILDS</code>가 나오면, 그 패키지를 여기에 적고 <code>true</code>/<code>false</code>를 정합니다</td></tr>
 <tr><td>막 공개된 버전</td><td>공개된 지 <strong>하루가 안 된 버전</strong>은 설치하지 않고, 그 전 버전을 씁니다. 악성 버전은 대개 하루 안에 발견되어 삭제되기 때문입니다</td></tr>
 </table>
 </details>
-
-<p class="file">package.json</p>
-<pre><code>{
-  "name": "3tier-strapi-nextjs",
-  "private": true,
-  "packageManager": "pnpm@12.6.0",
-  "engines": {
-    "node": "&gt;=24 &lt;25"
-  },
-  "scripts": {
-    "dev:db": "docker compose up -d --wait",
-    "dev:cms": "pnpm -F cms develop",
-    "dev:web": "pnpm -F web dev",
-    "lint": "biome check",
-    "format": "biome check --write",
-    "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.5.14"
-  }
-}</code></pre>
-<p>자주 쓰는 명령을 저장소 루트에 모았습니다. 예: <code>pnpm dev:cms</code> = "cms 앱의 develop 명령 실행". <code>packageManager</code>는 pnpm 버전을 고정합니다.</p>
-
-<p class="file">.gitignore</p>
-<pre><code># 의존성·빌드 결과
-node_modules/
-dist/
-build/
-.next/
-out/
-.strapi/
-.tmp/
-*.tsbuildinfo
-
-# CDK
-infra/cdk.out/
-
-# 환경변수 (절대 커밋하지 않는다. 예시는 .env.example 로)
-.env
-.env.*
-!.env.example
-
-# Strapi 로컬 업로드 파일 (데이터는 git 이 아니라 DB/S3 에 있다)
-apps/cms/public/uploads/*
-!apps/cms/public/uploads/.gitkeep
-
-# 기타
-.DS_Store
-*.log</code></pre>
-
-<p class="file">.editorconfig</p>
-<pre><code>root = true
-
-[*]
-charset = utf-8
-end_of_line = lf
-indent_style = space
-indent_size = 2
-insert_final_newline = true
-trim_trailing_whitespace = true</code></pre>
-<p>어떤 에디터를 쓰든 들여쓰기와 줄바꿈 규칙이 같아지게 합니다.</p>
-
-<div class="state"><div class="h">📁 1단계 후 상태</div><pre>3tier-strapi-nextjs/
-├── <mark>.editorconfig</mark>
-├── <mark>.gitignore</mark>
-├── <mark>.nvmrc</mark>
-├── <mark>package.json</mark>
-├── <mark>pnpm-workspace.yaml</mark>
-└── <mark>apps/</mark>            (비어 있음)</pre></div>
+<p>나머지 <code>.gitignore</code>(<code>.env</code>·<code>node_modules</code> 등 커밋하지 않을 것)와 <code>.editorconfig</code>(들여쓰기·줄바꿈 통일)는 저장소 파일을 참고하세요. 전체: <code>.nvmrc</code>, <code>package.json</code>, <code>pnpm-workspace.yaml</code>, <code>.gitignore</code>, <code>.editorconfig</code></p>
 
 <!-- ============================================================ -->
-<h2>2. DB 컨테이너 (PostgreSQL)</h2>
-<p>DB는 PC에 설치하지 않고 <strong>Docker 컨테이너</strong>로 실행합니다. 누구의 PC에서든 같은 버전이 뜨고, 필요 없으면 통째로 지울 수 있습니다.</p>
-<p class="file">compose.yaml (저장소 루트)</p>
-<pre><code># 로컬 개발용 DB 입니다. 앱(web/cms)은 컨테이너가 아니라 pnpm dev 로 직접 실행합니다.
-# 운영(Aurora PostgreSQL)과 같은 메이저 버전을 씁니다.
-services:
+<h2>3. DB 컨테이너 (PostgreSQL)</h2>
+<p>DB는 PC에 설치하지 않고 <strong>Docker 컨테이너</strong>로 실행합니다. 누구의 PC에서든 같은 버전이 뜨고, 필요 없으면 통째로 지울 수 있습니다. 운영(Aurora PostgreSQL)과 메이저 버전(17)을 맞춥니다.</p>
+<p class="file">compose.yaml</p>
+<pre><code>services:
   db:
     image: postgres:17-alpine
     environment:
@@ -163,99 +97,52 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data # 컨테이너를 지워도 데이터가 남도록
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U strapi -d strapi"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
-volumes:
-  db-data:</code></pre>
-<table>
-<tr><th>항목</th><th>의미</th></tr>
-<tr><td><code>image</code></td><td>사용할 공식 이미지. 운영 DB와 메이저 버전(17)을 맞춥니다</td></tr>
-<tr><td><code>environment</code></td><td>처음 기동할 때 만들 DB 이름, 사용자, 비밀번호</td></tr>
-<tr><td><code>ports</code></td><td>PC의 포트 → 컨테이너의 포트 연결</td></tr>
-<tr><td><code>volumes</code></td><td>DB 파일을 보관하는 장소. 컨테이너를 다시 만들어도 데이터가 남습니다</td></tr>
-<tr><td><code>healthcheck</code></td><td>DB가 접속을 받을 준비가 됐는지 확인합니다. <code>--wait</code>는 이 확인이 끝날 때까지 기다립니다</td></tr>
-</table>
-<details>
-<summary>Dockerfile과 compose.yaml은 무엇이 다른가요?</summary>
-<p><strong>Dockerfile</strong>은 "이미지를 <em>만드는</em> 레시피"로, 우리 앱을 배포할 때 씁니다(06장). <strong>compose.yaml</strong>은 "이미 있는 이미지를 <em>어떤 설정으로 실행할지</em>"를 적은 파일입니다. PostgreSQL은 공식 이미지가 있으므로 compose.yaml만 있으면 됩니다.</p>
-</details>
+      test: ["CMD-SHELL", "pg_isready -U strapi -d strapi"]</code></pre>
+<p><code>healthcheck</code>는 "DB가 접속을 받을 준비가 됐는지"를 확인합니다. <code>pnpm dev:db</code>(<code>docker compose up -d --wait</code>)는 이 확인이 끝날 때까지 기다립니다. 전체: <code>compose.yaml</code></p>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>pnpm dev:db
 docker compose ps</code></pre>
 <p class="ok"><code>STATUS</code>에 <code>Up ... (healthy)</code>가 표시됩니다.</p>
-
-<div class="state"><div class="h">📁 2단계 후 상태</div><pre>3tier-strapi-nextjs/
-├── .editorconfig
-├── .gitignore
-├── .nvmrc
-├── <mark>compose.yaml</mark>
-├── package.json
-├── pnpm-workspace.yaml
-└── apps/</pre></div>
+<details>
+<summary>Dockerfile과 compose.yaml은 무엇이 다른가요?</summary>
+<p><strong>Dockerfile</strong>은 "이미지를 <em>만드는</em> 레시피"로, 우리 앱을 배포할 때 씁니다(05·06장). <strong>compose.yaml</strong>은 "이미 있는 이미지를 <em>어떤 설정으로 실행할지</em>"를 적은 파일입니다. PostgreSQL은 공식 이미지가 있으므로 compose.yaml만 있으면 됩니다.</p>
+</details>
 
 <!-- ============================================================ -->
-<h2>3. Strapi(CMS) 설치</h2>
-<h3>3-1. 생성</h3>
+<h2>4. Strapi(CMS) 설치</h2>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>npx create-strapi@latest apps/cms \
   --ts --use-pnpm --install --no-run --skip-cloud --no-example --no-git-init \
   --dbclient postgres --dbhost 127.0.0.1 --dbport 5432 \
   --dbname strapi --dbusername strapi --dbpassword strapi --dbssl false</code></pre>
-<table>
-<tr><th>옵션</th><th>의미</th></tr>
-<tr><td><code>--ts</code></td><td>TypeScript로 생성합니다</td></tr>
-<tr><td><code>--use-pnpm --install</code></td><td>pnpm으로 의존성까지 설치합니다</td></tr>
-<tr><td><code>--no-run</code></td><td>생성 후 자동으로 기동하지 않습니다</td></tr>
-<tr><td><code>--skip-cloud</code></td><td>Strapi Cloud(유료 호스팅) 로그인을 건너뜁니다. 우리는 AWS에 배포합니다</td></tr>
-<tr><td><code>--no-example</code></td><td>예제 데이터 없이 빈 상태로 시작합니다</td></tr>
-<tr><td><code>--no-git-init</code></td><td>저장소 루트에 이미 git이 있으므로 새로 만들지 않습니다</td></tr>
-<tr><td><code>--db*</code></td><td>2단계의 DB 컨테이너 접속 정보. <code>apps/cms/.env</code>에 기록됩니다</td></tr>
-</table>
-
-<h3>3-2. 모노레포에 맞게 정리</h3>
-<p>생성기는 "단독 프로젝트"를 전제로 만들기 때문에, 모노레포에 맞게 조금 정리합니다.</p>
+<p>TypeScript로, 예제 데이터 없이, Strapi Cloud(유료 호스팅) 로그인을 건너뛰고 만듭니다. <code>--db*</code>는 3절의 DB 컨테이너 접속 정보로, <code>apps/cms/.env</code>에 기록됩니다.</p>
+<p>생성기는 "단독 프로젝트"를 전제로 만들기 때문에, 모노레포에 맞게 정리합니다.</p>
 <p class="where">실행 위치: <code>apps/cms</code></p>
-<pre><code>cd apps/cms
-# Strapi Cloud 전용 플러그인과 명령을 제거 (AWS에 배포하므로 불필요)
+<pre><code># Strapi Cloud 전용 플러그인과 명령을 제거 (AWS에 배포하므로 불필요)
 pnpm remove @strapi/plugin-cloud
 npm pkg delete scripts.deploy scripts.upgrade "scripts.upgrade:dry"
 # pnpm 설정은 루트(pnpm-workspace.yaml) 하나로 모았으므로 삭제
 npm pkg delete pnpm
 # 타입 검사 명령 추가, Node 24 타입 정의로 변경
 npm pkg set scripts.typecheck="tsc --noEmit"
-pnpm add -D @types/node@^24
-cd ../..</code></pre>
+pnpm add -D @types/node@^24</code></pre>
 
-<h3>3-3. 환경변수 파일</h3>
-<p><code>apps/cms/.env</code>는 생성기가 <strong>자동으로</strong> 만들고, 시크릿 칸에 무작위 값을 넣어 줍니다. 이 파일은 커밋하지 않습니다. 대신 "어떤 값이 필요한지"를 알려 주는 <code>.env.example</code>을 아래 내용으로 <strong>덮어써서</strong> 커밋합니다.</p>
-<p class="file">apps/cms/.env.example</p>
-<pre><code># Strapi 로컬 개발용 환경변수 예시입니다.
-# `cp .env.example .env` 로 복사한 뒤, 아래 시크릿 값을 `openssl rand -base64 32` 결과로 바꾸세요.
-# 운영(AWS)에서는 이 파일을 쓰지 않습니다. 같은 이름의 값을 ECS 가 Secrets Manager 에서 주입합니다.
-
-HOST=0.0.0.0
-PORT=1337
-
-# 세션 쿠키·토큰 서명용 시크릿
+<h3>설정은 환경변수로 받는다</h3>
+<p>Strapi의 설정 파일(<code>apps/cms/config/*.ts</code>)은 DB 주소나 비밀 값을 직접 쓰지 않고 <strong>환경변수</strong>를 읽습니다.</p>
+<pre><code>// apps/cms/config/database.ts (생성기가 만든 코드, 발췌)
+host: env("DATABASE_HOST", "localhost"),
+port: env.int("DATABASE_PORT", 5432),</code></pre>
+<p>로컬에서는 생성기가 만든 <code>apps/cms/.env</code>가 환경변수가 됩니다(무작위 시크릿이 들어 있으므로 <strong>커밋하지 않음</strong>). 대신 "어떤 값이 필요한지"만 적은 <code>.env.example</code>을 커밋합니다.</p>
+<pre><code># 세션 쿠키·토큰 서명용 시크릿
 APP_KEYS="toBeModified1,toBeModified2"
 API_TOKEN_SALT=tobemodified
 ADMIN_JWT_SECRET=tobemodified
-TRANSFER_TOKEN_SALT=tobemodified
-JWT_SECRET=tobemodified
-ENCRYPTION_KEY=tobemodified
-
+...
 # DB (저장소 루트의 compose.yaml 로 띄운 PostgreSQL)
 DATABASE_CLIENT=postgres
 DATABASE_HOST=127.0.0.1
-DATABASE_PORT=5432
-DATABASE_NAME=strapi
-DATABASE_USERNAME=strapi
-DATABASE_PASSWORD=strapi
-DATABASE_SSL=false</code></pre>
-
+...</code></pre>
+<p>전체: <code>apps/cms/.env.example</code>. 운영(AWS)에는 <code>.env</code> 파일이 없고, <strong>같은 이름의 환경변수</strong>를 ECS가 넣어 줍니다(06장). 코드는 그대로입니다.</p>
 <details>
 <summary>각 시크릿은 무엇에 쓰이나요?</summary>
 <table>
@@ -266,76 +153,26 @@ DATABASE_SSL=false</code></pre>
 <tr><td><code>ENCRYPTION_KEY</code></td><td>발급한 토큰을 관리자 화면에서 다시 볼 수 있도록 암호화</td><td>저장된 토큰을 표시할 수 없게 됩니다</td></tr>
 <tr><td><code>TRANSFER_TOKEN_SALT</code></td><td>환경 간 데이터 복사 기능용 토큰</td><td>해당 토큰이 무효가 됩니다</td></tr>
 <tr><td><code>JWT_SECRET</code></td><td>사이트 회원 로그인 (이번 실습에서는 사용하지 않음)</td><td>회원이 다시 로그인해야 합니다</td></tr>
-<tr><td><code>DATABASE_*</code></td><td>DB 접속 정보</td><td>DB에 연결할 수 없습니다</td></tr>
 </table>
 <p>시크릿은 <strong>환경마다 다른 값</strong>을 쓰고, 한번 정하면 함부로 바꾸지 않습니다.</p>
 </details>
-<details>
-<summary>Strapi는 이 값을 어떻게 읽고, 운영(AWS)에서는 어떻게 전달하나요?</summary>
-<p>Strapi의 설정 파일(<code>apps/cms/config/*.ts</code>)은 값을 직접 쓰지 않고 <strong>환경변수</strong>를 읽습니다.</p>
-<pre><code>// apps/cms/config/database.ts (생성기가 만든 코드, 발췌)
-host: env('DATABASE_HOST', 'localhost'),
-port: env.int('DATABASE_PORT', 5432),</code></pre>
-<p>로컬에서는 <code>.env</code> 파일이 환경변수가 됩니다. 운영에서는 <code>.env</code>가 없고, 이렇게 전달됩니다.</p>
-<ol>
-  <li>시크릿은 <strong>AWS Secrets Manager</strong>에 보관합니다(인프라 코드가 무작위로 생성).</li>
-  <li>ECS(Fargate)의 설정에 "환경변수 <code>APP_KEYS</code> ← Secrets Manager의 ○○"처럼 <em>참조</em>만 적습니다.</li>
-  <li>컨테이너가 시작될 때 ECS가 값을 꺼내 <strong>환경변수로 주입</strong>합니다.</li>
-  <li>Strapi는 로컬과 똑같이 <code>env('APP_KEYS')</code>로 읽습니다. <strong>코드는 그대로입니다.</strong></li>
-</ol>
-<p>시크릿이 Git에도, 컨테이너 이미지에도 남지 않는 것이 핵심입니다(06장에서 실제로 설정합니다).</p>
-</details>
 
-<h3>3-4. 기동 확인</h3>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>pnpm install
 pnpm dev:cms</code></pre>
-<p class="ok">터미널에 <code>Database: postgres</code>와 <code>Strapi started successfully</code>가 표시되고, <code>http://localhost:1337/admin</code>에서 관리자 등록 화면이 열립니다. 등록은 02장에서 합니다. 확인했으면 <code>Ctrl + C</code>로 멈춥니다.</p>
-
-<div class="state"><div class="h">📁 3단계 후 상태 (주요 파일만)</div><pre>3tier-strapi-nextjs/
-├── .editorconfig  .gitignore  .nvmrc  compose.yaml
-├── package.json
-├── pnpm-workspace.yaml
-├── <mark>pnpm-lock.yaml</mark>           설치된 패키지 버전 기록 (커밋함)
-├── <mark>node_modules/</mark>            (커밋하지 않음)
-└── apps/
-    └── <mark>cms/</mark>
-        ├── config/          서버·DB·플러그인 설정 (코드)
-        │   ├── admin.ts  api.ts  database.ts
-        │   └── middlewares.ts  plugins.ts  server.ts
-        ├── database/migrations/
-        ├── public/uploads/  로컬에 업로드한 파일 (커밋하지 않음)
-        ├── src/
-        │   ├── admin/       관리자 화면 커스터마이즈 (이번에는 사용 안 함)
-        │   ├── api/         ← 02장에서 화면으로 만든 스키마가 여기에 생깁니다
-        │   └── index.ts
-        ├── types/generated/ 자동 생성 타입
-        ├── .env             시크릿 (커밋하지 않음)
-        ├── .env.example
-        ├── package.json
-        └── tsconfig.json</pre></div>
+<p class="ok">터미널에 <code>Database: postgres</code>와 <code>Strapi started successfully</code>가 표시되고, <code>http://localhost:1337/admin</code>에서 관리자 등록 화면이 열립니다. 등록은 02장에서 합니다.</p>
 
 <!-- ============================================================ -->
-<h2>4. Next.js(화면) 설치</h2>
-<h3>4-1. 생성</h3>
+<h2>5. Next.js(화면) 설치</h2>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>npx create-next-app@latest apps/web \
   --ts --tailwind --biome --app --src-dir --import-alias '@/*' \
   --use-pnpm --skip-install --disable-git</code></pre>
-<table>
-<tr><th>옵션</th><th>의미</th></tr>
-<tr><td><code>--app</code></td><td>App Router를 씁니다. <strong>서버 컴포넌트</strong>(서버에서만 실행되는 코드)를 쓸 수 있어서 API 토큰을 브라우저에 숨길 수 있습니다</td></tr>
-<tr><td><code>--tailwind</code></td><td>CSS 프레임워크 Tailwind CSS를 씁니다</td></tr>
-<tr><td><code>--biome</code></td><td>코드 검사 도구로 Biome을 씁니다</td></tr>
-<tr><td><code>--src-dir</code></td><td>코드를 <code>src/</code> 아래에 둡니다</td></tr>
-<tr><td><code>--skip-install --disable-git</code></td><td>설치와 git은 저장소 루트에서 관리하므로 건너뜁니다</td></tr>
-</table>
-
-<h3>4-2. 모노레포에 맞게 정리</h3>
+<p><code>--app</code>(App Router)이 중요합니다. <strong>서버 컴포넌트</strong>(서버에서만 실행되는 코드)를 쓸 수 있어서, 04장에서 API 토큰을 브라우저에 숨길 수 있습니다. 설치와 git은 저장소 루트에서 관리하므로 건너뜁니다.</p>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code># 생성기가 만든 pnpm 설정은 루트 것과 중복되므로 삭제
 rm apps/web/pnpm-workspace.yaml
-# Biome 설정은 루트로 옮겨 web과 cms 모두에 적용 (5단계에서 내용 교체)
+# Biome 설정은 루트로 옮겨 web과 cms 모두에 적용
 mv apps/web/biome.json biome.json
 
 cd apps/web
@@ -346,88 +183,29 @@ cd ../..
 pnpm add -D @types/node@^24 --filter web
 pnpm install
 pnpm dev:web</code></pre>
-<figure><img src="../assets/img/setup/next-default.png" alt="Next.js 초기 화면"><figcaption>http://localhost:3000 에 이 화면이 표시되면 성공입니다. 확인했으면 <code>Ctrl + C</code>로 멈춥니다</figcaption></figure>
+<figure><img src="../assets/img/setup/next-default.png" alt="Next.js 초기 화면"><figcaption>http://localhost:3000 에 이 화면이 표시되면 성공입니다</figcaption></figure>
 
 <!-- ============================================================ -->
-<h2>5. 코드 검사 도구(Biome)와 첫 커밋</h2>
-<p>Biome은 <strong>코드 모양 통일(포맷)</strong>과 <strong>실수 검출(린트)</strong>을 한 번에 하는 도구입니다. 저장소 루트의 <code>biome.json</code>을 아래 내용으로 바꿔서 web과 cms 전체에 같은 규칙을 적용합니다.</p>
-<p class="file">biome.json (저장소 루트)</p>
-<pre><code>{
-  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": {
-    "ignoreUnknown": true,
-    "includes": [
-      "**",
-      "!**/node_modules",
-      "!**/.next",
-      "!**/dist",
-      "!**/build",
-      "!**/.strapi",
-      "!**/types/generated",
-      "!**/cdk.out",
-      "!**/*.svg",
-      "!docs"
-    ]
-  },
-  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
-  "css": { "parser": { "tailwindDirectives": true } },
-  "linter": {
+<h2>6. 코드 검사 도구(Biome)와 첫 커밋</h2>
+<p>Biome은 <strong>코드 모양 통일(포맷)</strong>과 <strong>실수 검출(린트)</strong>을 한 번에 하는 도구입니다. 루트의 <code>biome.json</code> 하나로 web과 cms에 같은 규칙을 적용합니다.</p>
+<pre><code>  "linter": {
     "enabled": true,
     "rules": { "preset": "recommended" },
     "domains": { "next": "recommended", "react": "recommended" }
-  },
-  "assist": { "actions": { "source": { "organizeImports": "on" } } }
-}</code></pre>
-<details>
-<summary>각 항목의 의미</summary>
-<table>
-<tr><th>항목</th><th>의미</th></tr>
-<tr><td><code>vcs.useIgnoreFile</code></td><td><code>.gitignore</code>에 있는 파일은 검사하지 않습니다</td></tr>
-<tr><td><code>files.includes</code></td><td><code>!</code>가 붙은 것은 제외합니다(자동 생성 파일, 빌드 결과, 이미지(svg), 문서)</td></tr>
-<tr><td><code>formatter</code></td><td>들여쓰기 2칸 등 코드 모양을 통일합니다</td></tr>
-<tr><td><code>linter.rules.preset</code></td><td><code>recommended</code> = 사용하지 않는 변수, 잘못된 비교 등 흔한 실수를 찾는 기본 규칙 모음</td></tr>
-<tr><td><code>domains</code></td><td>Next.js와 React 전용 규칙을 켭니다</td></tr>
-<tr><td><code>organizeImports</code></td><td>import 순서를 자동으로 정렬합니다</td></tr>
-</table>
-</details>
+  },</code></pre>
+<p><code>recommended</code>는 사용하지 않는 변수, 잘못된 비교 같은 흔한 실수를 찾는 기본 규칙 모음입니다. 자동 생성 파일·빌드 결과·이미지(svg)·문서는 검사에서 뺍니다. 전체: <code>biome.json</code></p>
 <p class="where">실행 위치: 저장소 루트</p>
 <pre><code>pnpm install
 pnpm format      # 전체 코드를 규칙에 맞게 자동 수정
 pnpm lint        # 검사만 (오류가 없으면 성공)
 git add .
 git commit -m "chore: ローカル開発環境を構築"</code></pre>
-<p>Strapi가 생성한 설정 파일에서 <code>Found 6 warnings</code> 같은 <strong>경고</strong>가 표시될 수 있습니다. 생성기의 코드 스타일 때문에 나오는 경고라서 무시해도 됩니다. <code>error</code>가 없으면 됩니다.</p>
-<details open>
-<summary>커밋이란? 메시지는 어떻게 쓰나요?</summary>
-<p><strong>커밋</strong>은 "지금 상태를 저장 지점으로 기록하는 것"입니다. 이 자료에서는 <strong>장이 끝날 때마다 하나씩</strong> 커밋합니다. 문제가 생기면 이전 지점으로 되돌아갈 수 있습니다. GitHub에 올리는 것은 05장에서 합니다.</p>
-<p>메시지는 <code>종류: 내용</code> 형식(Conventional Commits)으로 씁니다. 종류는 <code>feat</code>(기능 추가), <code>fix</code>(수정), <code>chore</code>(설정·환경), <code>docs</code>(문서) 정도만 알면 충분합니다. 괄호 안에는 대상(<code>cms</code>, <code>web</code>)을 적습니다. <code>종류:</code> 뒤의 내용은 팀이 읽는 언어로 씁니다(이 예시는 일본어).</p>
+<p>Strapi가 생성한 설정 파일에서 <code>Found 6 warnings</code> 같은 <strong>경고</strong>가 나올 수 있습니다. 생성기의 코드 스타일 때문이라 무시해도 됩니다. <code>error</code>가 없으면 됩니다.</p>
+<details>
+<summary>커밋 메시지는 어떻게 쓰나요?</summary>
+<p><code>종류: 내용</code> 형식(Conventional Commits)으로 씁니다. 종류는 <code>feat</code>(기능 추가), <code>fix</code>(수정), <code>chore</code>(설정·환경), <code>docs</code>(문서) 정도만 알면 충분합니다. 괄호 안에는 대상(<code>cms</code>, <code>web</code>)을 적습니다. 내용은 팀이 읽는 언어로 씁니다(이 예시는 일본어). 이 자료는 장마다 커밋 1개입니다.</p>
 </details>
-<p class="ok"><code>pnpm lint</code>가 오류 없이 끝나고 커밋이 만들어집니다. <code>git status</code>에 <code>.env</code>와 <code>node_modules</code>가 나오지 않으면 <code>.gitignore</code>가 제대로 동작하는 것입니다.</p>
-
-<div class="state"><div class="h">📁 01장 완료 시점의 최종 상태 (주요 파일만)</div><pre>3tier-strapi-nextjs/
-├── .editorconfig
-├── .gitignore
-├── .nvmrc
-├── <mark>biome.json</mark>
-├── compose.yaml
-├── package.json
-├── pnpm-lock.yaml
-├── pnpm-workspace.yaml
-└── apps/
-    ├── cms/                 Strapi (:1337)
-    │   ├── config/
-    │   ├── src/
-    │   ├── .env.example
-    │   └── package.json
-    └── <mark>web/</mark>                 Next.js (:3000)
-        ├── public/
-        ├── src/app/
-        │   ├── layout.tsx   모든 페이지 공통 틀
-        │   ├── page.tsx     첫 페이지 (04장에서 메뉴 화면으로 바꿈)
-        │   └── globals.css
-        ├── next.config.ts
-        └── package.json</pre></div>
+<p class="ok"><code>git status</code>에 <code>.env</code>와 <code>node_modules</code>가 나오지 않으면 <code>.gitignore</code>가 제대로 동작하는 것입니다.</p>
 
 <!-- ============================================================ -->
 <h2>매일 쓰는 명령</h2>
@@ -437,8 +215,7 @@ git commit -m "chore: ローカル開発環境を構築"</code></pre>
 <tr><td><code>pnpm dev:cms</code></td><td>Strapi 기동 (<code>http://localhost:1337/admin</code>)</td></tr>
 <tr><td><code>pnpm dev:web</code></td><td>Next.js 기동 (<code>http://localhost:3000</code>)</td></tr>
 <tr><td><code>pnpm lint</code> / <code>pnpm format</code></td><td>코드 검사 / 자동 수정</td></tr>
-<tr><td><code>docker compose down</code></td><td>DB 정지 (데이터는 남음)</td></tr>
-<tr><td><code>docker compose down -v</code></td><td>DB 정지 + <strong>데이터 삭제</strong>(초기화)</td></tr>
+<tr><td><code>docker compose down</code> / <code>down -v</code></td><td>DB 정지 (데이터는 남음) / 정지 + <strong>데이터 삭제</strong></td></tr>
 </table>
 <p>Strapi와 Next.js는 각각 터미널 창을 하나씩 열어서 실행합니다.</p>
 
@@ -447,11 +224,10 @@ git commit -m "chore: ローカル開発環境を構築"</code></pre>
 <table>
 <tr><th>증상</th><th>확인할 것</th></tr>
 <tr><td>Strapi 기동 시 DB 연결 오류</td><td><code>docker compose ps</code>가 <code>healthy</code>인지, <code>apps/cms/.env</code>의 <code>DATABASE_*</code> 값이 compose.yaml과 같은지</td></tr>
-<tr><td><code>address already in use</code></td><td>같은 포트를 다른 프로그램이 쓰고 있습니다. 해당 프로그램을 멈추거나, compose.yaml의 PC 쪽 포트와 <code>.env</code>의 <code>DATABASE_PORT</code>를 같은 값으로 바꿉니다</td></tr>
-<tr><td><code>pnpm: command not found</code></td><td><code>npx get-pnpm</code> 후 터미널을 새로 열었는지 (설치 경로가 새 터미널부터 반영됩니다)</td></tr>
+<tr><td><code>address already in use</code></td><td>같은 포트를 다른 프로그램이 쓰고 있습니다. 그 프로그램을 멈추거나, compose.yaml의 PC 쪽 포트와 <code>.env</code>의 <code>DATABASE_PORT</code>를 같은 값으로 바꿉니다</td></tr>
+<tr><td><code>pnpm: command not found</code></td><td><code>npx get-pnpm</code> 후 터미널을 새로 열었는지</td></tr>
 </table>
 </details>
-
 
 <nav class="pager"><a href="00-overview.html">← 00 전체 구조</a><a href="02-strapi-schema.html">02 Strapi 스키마 설계 →</a></nav>
 </main>

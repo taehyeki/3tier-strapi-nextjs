@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 배포(CD)</title>
+<link rel="stylesheet" href="../assets/guide.css">
+</head>
+<body>
+<main>
+<header class="chapter">
+  <div class="no">CHAPTER 06</div>
+  <h1>배포(CD): main에 머지하면 AWS에 반영되게 하기</h1>
+  <p class="lead">05장에서 main을 "검사를 통과한 코드만 있는 곳"으로 만들었습니다. 이 장에서는 <strong>main이 바뀌면 자동으로 운영(AWS)에 반영</strong>되게 하고, 첫 배포 뒤의 운영 초기 설정까지 합니다. AWS 구성 자체는 여러분의 설계를 쓰면 되므로, 여기서는 <strong>배포의 흐름과 "값이 어디서 오는가"</strong>를 중심으로 설명합니다.</p>
+</header>
+
+<p class="goal">main에 머지하면 이미지가 한 번 만들어져 ECR에 올라가고, 그 이미지로 AWS가 갱신된다. 운영 관리자 등록·데이터 입력·API 토큰 설정까지 마쳐 운영 사이트가 뜬다.</p>
+
+<h2>1. 전체 흐름</h2>
+<figure>
+<svg viewBox="0 0 860 230" width="100%" role="img" aria-label="CI와 CD의 흐름">
+  <style>.b{fill:var(--card);stroke:var(--line);stroke-width:1.5}.h{fill:color-mix(in srgb,var(--accent,#c2410c) 8%,var(--card));stroke:var(--accent,#c2410c);stroke-width:1.5}.a{fill:none;stroke:var(--accent,#c2410c);stroke-width:2;marker-end:url(#m6)}.t{fill:var(--fg);font-size:14px;font-weight:700}.s{fill:var(--muted);font-size:12px}</style>
+  <defs><marker id="m6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent,#c2410c)"/></marker></defs>
+  <rect class="b" x="10" y="20" width="170" height="150" rx="12"/>
+  <text class="t" x="24" y="46">PR (05장)</text>
+  <text class="s" x="24" y="72">ci.yml</text>
+  <text class="s" x="24" y="92">빌드·검사만</text>
+  <text class="s" x="24" y="112">(어디에도 올리지 않음)</text>
+  <text class="s" x="24" y="152">통과해야 머지</text>
+  <path class="a" d="M180,95 L220,95"/>
+  <rect class="h" x="220" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="234" y="46">① publish</text>
+  <text class="s" x="234" y="72">deploy.yml (main)</text>
+  <text class="s" x="234" y="92">빌드 → Trivy 검사</text>
+  <text class="s" x="234" y="112">→ ECR 에 push</text>
+  <text class="s" x="234" y="152">태그 = 커밋 SHA</text>
+  <path class="a" d="M420,95 L460,95"/>
+  <rect class="h" x="460" y="20" width="200" height="150" rx="12"/>
+  <text class="t" x="474" y="46">② deploy</text>
+  <text class="s" x="474" y="72">환경 3tier-prod</text>
+  <text class="s" x="474" y="92">cdk deploy</text>
+  <text class="s" x="474" y="112">-c imageTag=&lt;SHA&gt;</text>
+  <text class="s" x="474" y="152">빌드하지 않음</text>
+  <path class="a" d="M660,95 L700,95"/>
+  <rect class="b" x="700" y="20" width="150" height="150" rx="12"/>
+  <text class="t" x="714" y="46">AWS</text>
+  <text class="s" x="714" y="72">인프라 변경 반영</text>
+  <text class="s" x="714" y="92">ECS 가 새 이미지로</text>
+  <text class="s" x="714" y="112">교체 (무중단)</text>
+  <text class="s" x="10" y="205">이미지는 main 에서 한 번만 만든다. 배포는 "검사를 통과한 그 이미지"를 가리키기만 한다 (build once, deploy many).</text>
+</svg>
+</figure>
+<table>
+<tr><th>이 장에서 하는 것</th><th>하지 않는 것 (필요하면 추가)</th></tr>
+<tr><td>main 머지 → 이미지 빌드·검사·저장 → AWS 반영, 첫 배포 후 운영 초기 설정</td><td>자체 도메인·인증서, 스테이징 환경, 모니터링·알람. 이 예시는 운영 환경 1개, CloudFront 기본 도메인을 씁니다</td></tr>
+</table>
+<details>
+<summary>왜 PR에서 만든 이미지를 그대로 쓰지 않나요?</summary>
+<p>PR 단계의 코드는 아직 리뷰·머지 전입니다. 그 코드에 운영 저장소(ECR)에 쓸 권한을 주지 않습니다. 또 squash 머지는 main에 <strong>새 커밋</strong>을 만들기 때문에, 운영 이미지는 그 커밋에서 만들어야 "어느 커밋이 운영에서 도는가"가 정확해집니다. PR의 빌드는 <strong>머지해도 되는지 확인하는 검사</strong>, main의 빌드는 <strong>운영에 보낼 결과물</strong>입니다. 둘은 같은 단계(<code>.github/actions/build-image</code>)를 씁니다.</p>
+</details>
+
+<!-- ============================================================ -->
+<h2>2. 인프라 코드: 스택 3개</h2>
+<p>AWS 구성은 <strong>CDK</strong>(AWS 구성을 TypeScript로 적는 도구)로 <code>infra/</code>에 있습니다. 구성도는 00장을 보세요. 코드는 <strong>배포하는 단위(스택)</strong>로 셋으로 나눴습니다.</p>
+<table>
+<tr><th>스택</th><th>담는 것</th><th>누가·언제 배포</th><th>나눈 이유</th></tr>
+<tr><td><strong>Foundation</strong><br>(토대)</td><td>ECR(이미지 저장소) web·cms, GitHub Actions용 IAM 역할 2개</td><td>사람이 <strong>처음 한 번</strong>, 내 PC에서</td><td>CI/CD가 <em>쓰는</em> 것이라 CI/CD로 만들 수 없습니다(닭과 달걀)</td></tr>
+<tr><td><strong>Data</strong><br>(상태 있음)</td><td>VPC, Aurora(DB), S3(사진), Secrets Manager(시크릿)</td><td>배포 워크플로</td><td>지우면 되돌릴 수 없는 것. <strong>삭제 보호</strong>를 켭니다</td></tr>
+<tr><td><strong>App</strong><br>(상태 없음)</td><td>CloudFront ×2, 내부 ALB, ECS(web·cms)</td><td>배포 워크플로 (매번)</td><td>언제 지우고 다시 만들어도 되는 것</td></tr>
+</table>
+<p>"데이터가 있는 것과 없는 것을 다른 스택으로"는 CDK 공식 모범 사례입니다(<a href="https://docs.aws.amazon.com/cdk/v2/guide/best-practices.html">AWS CDK Best practices</a>). 앱 쪽을 몇 번 다시 만들어도 DB와 사진은 안전합니다.</p>
+<div class="state"><div class="h">📁 infra/ (주요 파일)</div><pre>infra/
+├── bin/
+│   ├── foundation.ts      토대 앱 (Foundation 스택)
+│   └── app.ts             서비스 앱 (Data + App 스택)
+└── lib/
+    ├── foundation-stack.ts   ECR, GitHub Actions 용 IAM 역할
+    ├── data-stack.ts         network / database / media-bucket / app-secrets 를 조립
+    ├── app-stack.ts          load-balancer / cdn / cms-service / web-service 를 조립
+    └── (층별 파일)            network.ts, database.ts, cdn.ts, cms-service.ts ...</pre></div>
+
+<!-- ============================================================ -->
+<h2>3. 처음 한 번만 하는 준비</h2>
+<p>배포 워크플로가 돌기 <strong>전에</strong> 있어야 하는 것들입니다. 사람이 한 번만 합니다.</p>
+<table>
+<tr><th>순서</th><th>하는 일</th><th>어디서</th></tr>
+<tr><td>①</td><td><code>cdk bootstrap</code>: CDK가 배포에 쓰는 기본 자원(배포용 역할 등)을 계정·리전에 만듭니다</td><td>내 PC (계정·리전당 1회)</td></tr>
+<tr><td>②</td><td><strong>토대 스택</strong> 배포: ECR과 GitHub Actions용 역할</td><td>내 PC</td></tr>
+<tr><td>③</td><td>GitHub: Environment <code>3tier-prod</code> 만들기, 시크릿 2개 등록(②의 출력 값)</td><td>GitHub 설정 화면</td></tr>
+</table>
+<p class="where">실행 위치: 저장소 루트 (AWS 자격 증명이 있는 터미널)</p>
+<pre><code>pnpm -F infra exec cdk bootstrap aws://&lt;계정 ID&gt;/ap-northeast-1
+pnpm -F infra foundation deploy \
+  -c githubSubjectPrefix="$(gh api repos/&lt;owner&gt;/&lt;repo&gt;/actions/oidc/customization/sub --jq .sub_claim_prefix)"</code></pre>
+<p>② 가 끝나면 출력에 역할 ARN 2개가 나옵니다. GitHub의 <strong>Settings → Secrets and variables → Actions</strong>와 <strong>Settings → Environments → 3tier-prod</strong>에 등록합니다.</p>
+<table>
+<tr><th>시크릿</th><th>등록하는 곳</th><th>쓰는 job</th></tr>
+<tr><td><code>AWS_IMAGE_PUSH_ROLE_ARN</code></td><td>저장소(Repository secrets)</td><td>publish: 이미지를 ECR에 올린다</td></tr>
+<tr><td><code>AWS_DEPLOY_ROLE_ARN</code></td><td>Environment <code>3tier-prod</code></td><td>deploy: <code>cdk deploy</code></td></tr>
+</table>
+
+<h3>GitHub가 AWS에 들어가는 방법: OIDC</h3>
+<p>GitHub에 AWS의 <strong>액세스 키를 두지 않습니다.</strong> 대신 실행할 때마다 GitHub가 "이 저장소의, 이 job입니다"라는 <strong>증명서(OIDC 토큰)</strong>를 발급하고, AWS는 그 내용이 역할의 조건과 맞을 때만 <strong>1시간짜리 임시 권한</strong>을 줍니다. 오래 쓰는 비밀 값이 어디에도 없으므로 유출될 것이 없습니다.</p>
+{{EX:infra/lib/foundation-stack.ts:44:60}}
+<table>
+<tr><th>역할</th><th>누가 쓸 수 있나 (sub 조건)</th><th>할 수 있는 것</th></tr>
+<tr><td>이미지 올리기</td><td>main 브랜치의 job만 (<code>…:ref:refs/heads/main</code>)</td><td>ECR 저장소 2개에 push만</td></tr>
+<tr><td>배포</td><td>Environment <code>3tier-prod</code>를 지정한 job만 (<code>…:environment:3tier-prod</code>)</td><td>CDK 배포용 역할로 갈아타는 것만</td></tr>
+</table>
+<p>PR의 job은 sub가 <code>…:pull_request</code>라서 어느 역할도 쓸 수 없습니다. 전체: <code>infra/lib/foundation-stack.ts</code></p>
+<div class="note"><code>githubSubjectPrefix</code>는 GitHub API로 받아 넣습니다. 2026-07-15 이후에 만든 저장소는 토큰의 sub가 <code>repo:소유자@ID/저장소@ID</code>처럼 <strong>숫자 ID가 붙은 형식</strong>입니다(저장소를 지운 뒤 다른 사람이 같은 이름으로 만들어도 구별되도록). 이름만으로 조건을 쓰면 <code>Not authorized to perform sts:AssumeRoleWithWebIdentity</code>로 실패합니다. API가 그 저장소의 실제 형식을 알려 주므로, 옛 저장소든 새 저장소든 맞게 들어갑니다.</div>
+
+<h3>Environment의 보호 규칙 (선택)</h3>
+<p><strong>Settings → Environments → 3tier-prod</strong>에서 <strong>Required reviewers</strong>(승인자)를 정하면, deploy job이 승인 대기로 멈추고 승인해야 배포됩니다. <strong>Deployment branches</strong>를 <code>main</code>으로 제한하면 다른 브랜치에서는 이 환경을 쓸 수 없습니다. 이 예시는 승인자 없이 "머지 = 배포"로 했습니다. 팀에 맞게 정하세요.</p>
+
+<!-- ============================================================ -->
+<h2>4. 배포 워크플로: <code>.github/workflows/deploy.yml</code></h2>
+<p>main에 머지되고 앱·인프라 파일이 바뀌었을 때 돕니다(문서만 바뀐 머지는 배포하지 않음).</p>
+<h3>① publish: 이미지를 한 번만 만든다</h3>
+{{EX:.github/workflows/deploy.yml:61:83}}
+<ul>
+  <li><strong>태그 = 커밋 SHA</strong>: 운영에서 도는 이미지가 어느 커밋에서 만들어졌는지 바로 알 수 있습니다.</li>
+  <li><strong>태그는 덮어쓸 수 없게</strong>(ECR의 IMMUTABLE 설정): 같은 태그에 다른 이미지가 들어갈 수 없으므로 "태그 = 그 커밋의 이미지"가 보장됩니다. 그래서 워크플로를 다시 실행하면 이미 있는 이미지는 빌드하지 않고 건너뜁니다.</li>
+  <li>빌드·검사 단계는 05장의 CI와 같은 것(<code>.github/actions/build-image</code>)을 씁니다. 검사를 통과하지 못하면 push하지 않고, 배포도 하지 않습니다.</li>
+</ul>
+<h3>② deploy: 가리키기만 한다</h3>
+{{EX:.github/workflows/deploy.yml:112:116}}
+<p><code>cdk deploy</code>는 이미지를 빌드하지 않고, 방금 올린 태그를 ECS에 알려 줄 뿐입니다. 인프라에 바뀐 것이 있으면 함께 반영하고, 없는 스택은 건드리지 않습니다. ECS는 새 컨테이너가 정상인 것을 확인한 뒤 이전 것을 내리므로 배포 중에도 사이트가 끊기지 않고, 새 버전이 뜨지 않으면 이전 버전으로 자동으로 돌아갑니다.</p>
+<p>전체: <code>.github/workflows/deploy.yml</code>, <code>infra/lib/app-image.ts</code></p>
+
+<!-- ============================================================ -->
+<h2>5. 설정 값은 어디서 오는가</h2>
+<p>앱은 로컬과 운영에서 <strong>같은 코드</strong>이고, 같은 이름의 환경변수를 읽습니다. 값을 넣는 곳만 다릅니다.</p>
+<table>
+<tr><th>종류</th><th>예</th><th>로컬</th><th>운영</th></tr>
+<tr><td>비밀이 아닌 값</td><td><code>STRAPI_URL</code>, <code>PUBLIC_URL</code>, <code>MEDIA_BUCKET</code></td><td><code>.env</code> / <code>.env.local</code></td><td>ECS 작업 정의의 <code>environment</code> (CDK 코드에 적음)</td></tr>
+<tr><td>시크릿</td><td>DB 비밀번호, Strapi 키 6개, API 토큰</td><td><code>.env</code> / <code>.env.local</code></td><td><strong>Secrets Manager</strong>. 작업 정의에는 위치만 적고, 컨테이너가 시작될 때 ECS가 꺼내 넣음</td></tr>
+<tr><td>이미지에 고정된 값</td><td><code>NODE_ENV=production</code>, <code>PORT</code></td><td>(개발 서버가 정함)</td><td>Dockerfile의 <code>ENV</code></td></tr>
+</table>
+{{EX:infra/lib/cms-service.ts:53:72}}
+<p>운영의 시크릿은 <strong>AWS가 무작위로 만듭니다</strong>(DB 비밀번호는 Aurora가, Strapi 키는 Secrets Manager가). 사람이 값을 보거나 옮길 일이 없습니다. 예외는 API 토큰 하나로, 운영 Strapi가 떠야 발급할 수 있으므로 첫 배포 뒤에 넣습니다(7절).</p>
+<div class="note"><strong>GitHub에는 앱의 시크릿이 하나도 없습니다.</strong> GitHub에 있는 것은 "AWS에 들어갈 역할의 이름(ARN)" 2개뿐이고, 앱의 시크릿은 AWS 안에서 만들어져 AWS 안에서만 전달됩니다.</div>
+
+<!-- ============================================================ -->
+<h2>6. 운영에서만 쓰는 Strapi 설정</h2>
+<p>Strapi는 <code>NODE_ENV=production</code>일 때 <code>config/env/production/</code>의 파일을 기본 설정 위에 <strong>덮어씁니다</strong>. 로컬 개발에는 영향이 없습니다.</p>
+<table>
+<tr><th>파일</th><th>하는 일</th><th>왜 필요한가</th></tr>
+<tr><td><code>config/env/production/plugins.ts</code></td><td>업로드한 사진을 S3에 저장</td><td>컨테이너의 디스크는 재시작하면 사라집니다. S3 접근 권한은 코드에 적지 않고, ECS 작업의 IAM 역할을 AWS SDK가 자동으로 씁니다</td></tr>
+<tr><td><code>config/env/production/server.ts</code></td><td>관리자 화면의 공개 주소, 프록시 뒤에서 동작</td><td>CloudFront → ALB를 거쳐 들어오므로</td></tr>
+<tr><td><code>config/env/production/middlewares.ts</code></td><td>관리자 화면이 S3 사진(CloudFront 주소)을 표시하도록 허용(CSP)</td><td>기본 설정은 자기 주소의 이미지만 허용합니다</td></tr>
+<tr><td><code>src/middlewares/cloudfront-proto.ts</code></td><td>"브라우저는 HTTPS로 왔다"를 Strapi에 알림</td><td>CloudFront → ALB 구간은 HTTP라서, 그대로면 관리자 로그인 쿠키에 Secure가 붙지 않습니다</td></tr>
+</table>
+{{EX:apps/cms/config/env/production/plugins.ts:8:25}}
+<h3>DB 접속 암호화</h3>
+<p>Aurora는 암호화되지 않은 접속을 거부하도록 설정했고(<code>rds.force_ssl=1</code>), Strapi는 <code>DATABASE_SSL=true</code>로 접속합니다. 이때 상대가 진짜 AWS의 DB인지 확인하기 위해 <strong>AWS 공식 인증서 묶음</strong>을 이미지에 넣습니다.</p>
+{{EX:apps/cms/Dockerfile:36:40}}
+<p>web은 ALB의 상태 확인용 <code>/healthz</code>(항상 <code>ok</code>를 돌려줌)만 추가했습니다. 전체: <code>apps/web/src/app/healthz/route.ts</code></p>
+
+<!-- ============================================================ -->
+<h2>7. 첫 배포와 운영 초기 설정</h2>
+<p>이 장의 변경을 PR로 올리고 머지하면 배포가 시작됩니다. 첫 배포는 DB와 CloudFront를 새로 만들기 때문에 20~30분 걸립니다.</p>
+{{IMG:actions-run.png|배포 실행 화면. publish(web·cms)가 끝나면 deploy가 이어서 돕니다}}
+<p>끝나면 deploy job의 로그 끝에 <strong>출력(Outputs)</strong>이 나옵니다.</p>
+<table>
+<tr><th>출력</th><th>쓰는 곳</th></tr>
+<tr><td><code>ThreeTierApp.SiteUrl</code></td><td>사이트 주소 (<code>https://xxxx.cloudfront.net</code>)</td></tr>
+<tr><td><code>ThreeTierApp.AdminUrl</code></td><td>관리자 화면 주소</td></tr>
+<tr><td><code>ThreeTierData.ApiTokenSecretName</code></td><td>API 토큰을 넣을 시크릿의 이름</td></tr>
+</table>
+
+<h3>① 관리자 등록: 배포 직후 바로</h3>
+<p>Strapi는 <strong>처음 접속한 사람이 최고 관리자</strong>가 됩니다. 주소가 공개되어 있으므로, 배포가 끝나면 바로 AdminUrl을 열어 등록합니다. 비밀번호는 로컬과 다른 강한 값으로 하고 비밀번호 관리 도구에 보관합니다.</p>
+{{IMG:admin-register.png|운영 관리자 화면의 첫 화면. 이 화면이 보이는 동안은 누구나 최고 관리자로 등록할 수 있습니다}}
+
+<h3>② 데이터 입력</h3>
+<p>03장과 같은 방법으로 운영 관리자 화면에서 입력하고 Publish합니다. <strong>스키마(그릇)는 배포되었지만, 데이터는 배포되지 않습니다.</strong> 운영 DB는 비어 있습니다. 사진은 이제 S3에 저장됩니다.</p>
+
+<h3>③ API 토큰: 발급 → Secrets Manager → web 재시작</h3>
+<p>03장과 같은 설정(Custom, 읽기만)으로 <strong>운영 Strapi에서</strong> 토큰을 발급합니다. 로컬 토큰은 로컬 DB에만 있으므로 운영에서는 쓸 수 없습니다. 발급한 값을 Secrets Manager에 넣고, web을 다시 시작해서 새 값을 읽게 합니다.</p>
+<p class="where">실행 위치: 아무 곳 (AWS 자격 증명이 있는 터미널)</p>
+<pre><code># 토큰 값을 시크릿에 넣는다 (프롬프트에 붙여 넣기. 명령 기록에 남지 않게)
+read -rs TOKEN
+aws secretsmanager put-secret-value --secret-id &lt;ApiTokenSecretName&gt; --secret-string "$TOKEN"
+# web 을 다시 시작한다 (ECS 는 시크릿을 컨테이너가 시작될 때만 읽는다)
+aws ecs update-service --cluster &lt;ClusterName&gt; --service &lt;WebServiceName&gt; --force-new-deployment</code></pre>
+<p><code>ClusterName</code>과 <code>WebServiceName</code>도 deploy의 출력에 있습니다. 이 두 줄은 "AWS 변경은 배포 워크플로로만"의 <strong>유일한 예외</strong>입니다. 시크릿의 <em>값</em>은 원래 코드 밖에서 관리하는 것이기 때문입니다. CDK는 시크릿의 <em>그릇</em>만 관리하므로, 다음 배포에서 이 값이 덮어써지지 않습니다.</p>
+{{IMG:site.png|운영 사이트. 04장의 로컬 화면과 같은 코드가, 운영 관리자 화면에서 입력한 데이터로 표시됩니다}}
+
+<!-- ============================================================ -->
+<h2>8. 배포가 실패했을 때</h2>
+<p>실패하면 어디서 멈췄는지에 따라 보는 곳이 다릅니다. 이 자료를 만들 때도 첫 배포에서 두 번 실패했습니다(표의 위 두 줄).</p>
+<table>
+<tr><th>증상 (어디서 보나)</th><th>원인</th><th>대응</th></tr>
+<tr><td>publish가 <code>Not authorized to perform sts:AssumeRoleWithWebIdentity</code><br>(Actions 로그)</td><td>역할의 신뢰 조건(sub)이 GitHub가 보낸 토큰과 다름. 새 저장소의 불변 subject 형식 등</td><td>3절의 <code>githubSubjectPrefix</code>를 API로 받아 토대 스택을 다시 배포</td></tr>
+<tr><td>deploy가 <code>CREATE_FAILED … Invalid rule description</code><br>(CloudFormation 콘솔 → 스택 → 이벤트)</td><td>AWS에 보내는 문자열이 서비스의 규격에 맞지 않음(보안 그룹 설명에 <code>&gt;</code>)</td><td>코드를 고쳐 PR → 머지. 스택은 자동으로 이전 상태로 돌아가 있으므로 다시 배포하면 됩니다</td></tr>
+<tr><td>deploy가 오래 걸린 뒤 ECS 서비스에서 실패<br>(ECS 콘솔 → 서비스 → 이벤트, 로그)</td><td>새 컨테이너가 상태 확인을 통과하지 못함(설정 값, DB 접속 등)</td><td>ECS가 자동으로 이전 버전으로 되돌립니다. CloudWatch Logs의 앱 로그에서 원인을 찾습니다</td></tr>
+</table>
+<p>어느 경우든 <strong>운영을 직접 고치지 않고</strong>, 코드를 고쳐 같은 흐름(PR → 머지 → 배포)으로 다시 보냅니다. 실패한 배포는 자동으로 되돌아가므로 사이트는 이전 상태 그대로입니다.</p>
+
+<!-- ============================================================ -->
+<h2>9. 비용과 정리</h2>
+<p>이 구성은 켜 두기만 해도 요금이 나옵니다(도쿄 리전, 2026-09 기준 대략).</p>
+<table>
+<tr><th>항목</th><th>월 (대략)</th><th>메모</th></tr>
+<tr><td>Aurora Serverless v2</td><td>$55〜</td><td>최소 0.5 ACU × $0.15/시간. 접속이 많으면 늘어남</td></tr>
+<tr><td>NAT Gateway</td><td>$49〜</td><td>$0.062/시간 + 공인 IP. 데이터 처리량에 따라 추가</td></tr>
+<tr><td>ECS Fargate (ARM)</td><td>$27</td><td>web 0.25 vCPU·0.5 GB, cms 0.5 vCPU·1 GB</td></tr>
+<tr><td>ALB</td><td>$18〜</td><td>$0.0243/시간 + 사용량</td></tr>
+<tr><td>Secrets Manager, ECR, 로그 등</td><td>$5 정도</td><td>시크릿 8개 × $0.40</td></tr>
+<tr><td><strong>합계</strong></td><td><strong>$150 정도 (하루 $5)</strong></td><td>CloudFront는 무료 사용량 안</td></tr>
+</table>
+<p>연수가 끝나면 지웁니다. 앱 → 데이터 → 토대 순서입니다.</p>
+<p class="where">실행 위치: 저장소 루트 (AWS 자격 증명이 있는 터미널)</p>
+<pre><code>pnpm -F infra exec cdk destroy ThreeTierApp -c imageTag=-
+# 데이터 스택은 삭제 보호를 끈 뒤에 지운다 (DB 는 마지막 스냅샷이 남는다)
+aws cloudformation update-termination-protection --no-enable-termination-protection --stack-name ThreeTierData
+pnpm -F infra exec cdk destroy ThreeTierData -c imageTag=-
+pnpm -F infra foundation destroy -c githubSubjectPrefix=-</code></pre>
+<p>남은 DB 스냅샷은 필요 없으면 RDS 콘솔에서 지웁니다.</p>
+
+<!-- ============================================================ -->
+<h2>10. 커밋</h2>
+<p>이 장의 변경(인프라 코드, 배포 워크플로, 운영용 Strapi 설정)은 PR로 올렸고, 첫 배포에서 드러난 문제(8절)는 PR 하나로 고쳤습니다. main의 커밋은 PR 제목 그대로입니다.</p>
+<pre><code>feat: AWS へのデプロイ(CDK 3 スタックと、main で 1 回だけビルドする CD) (#3)
+fix(infra): 初回デプロイで見つかった問題を修正(OIDC の subject 形式、SG ルールの説明文) (#4)</code></pre>
+<p>이제 앞으로의 변경은 모두 같은 흐름입니다: <strong>브랜치 → PR(CI) → 머지 → 자동 배포</strong>. 07장에서 작은 변경을 이 흐름으로 운영까지 보내 봅니다.</p>
+
+<nav class="pager"><a href="05-github-ci.html">← 05 GitHub와 CI</a><span>07 변경을 운영까지 →</span></nav>
+</main>
+</body>
+</html>

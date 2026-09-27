@@ -113,23 +113,7 @@ export function toPublicUrl(url: string): string {
 </ul>
 
 <h2>5. 데이터 가져오기: <code>src/lib/menu.ts</code></h2>
-<pre><code>// 메뉴 페이지에 필요한 데이터를 Strapi 에서 가져온다.
-import &quot;server-only&quot;;
-import { connection } from &quot;next/server&quot;;
-import { cache } from &quot;react&quot;;
-import type { components, paths } from &quot;@/types/strapi&quot;;
-import { createStrapiClient } from &quot;./strapi&quot;;
-
-// ---- 타입: Strapi 스키마에서 자동 생성된 것을 그대로 쓴다 (pnpm gen:types) ----
-type Schemas = components[&quot;schemas&quot;];
-export type Menu = Schemas[&quot;ApiMenuMenuDocument&quot;];
-export type Topping = Schemas[&quot;ApiToppingToppingDocument&quot;];
-export type Extra = Schemas[&quot;ApiExtraExtraDocument&quot;];
-export type Media = Schemas[&quot;PluginUploadFileDocument&quot;];
-export type Shop =
-  paths[&quot;/shop&quot;][&quot;get&quot;][&quot;responses&quot;][200][&quot;content&quot;][&quot;application/json&quot;][&quot;data&quot;];
-
-// ---- 조회 ----
+<pre><code>// ---- 조회 ----
 // connection(): &quot;빌드할 때가 아니라 요청이 올 때 실행하라&quot;는 표시.
 //   - 빌드(CI) 시점에는 Strapi 가 없어도 빌드가 성공한다
 //   - 토큰·URL 을 실행 시점의 환경변수에서 읽으므로, 같은 이미지를 어느 환경에서든 쓸 수 있다
@@ -142,45 +126,13 @@ export const getShop = cache(async () =&gt; {
     .single(&quot;shop&quot;)
     .find({ populate: [&quot;photo&quot;] });
   return res.data as Shop;
-});
-
-export async function getMenuPage() {
-  await connection();
-  const client = createStrapiClient();
-  // API 4개를 동시에 호출한다 (하나씩 순서대로 부르는 것보다 빠르다)
-  const [shop, menus, toppings, extras] = await Promise.all([
-    getShop(),
-    client.collection(&quot;menus&quot;).find({
-      sort: &quot;createdAt:asc&quot;,
-      populate: {
-        photo: true,
-        sizes: true,
-        toppings: { fields: [&quot;name&quot;] },
-        extras: { fields: [&quot;name&quot;] },
-      },
-    }),
-    client.collection(&quot;toppings&quot;).find({
-      sort: &quot;createdAt:asc&quot;,
-      populate: { levels: true },
-    }),
-    client.collection(&quot;extras&quot;).find({
-      sort: &quot;createdAt:asc&quot;,
-      populate: [&quot;photo&quot;],
-    }),
-  ]);
-  return {
-    shop,
-    menus: menus.data as Menu[],
-    toppings: toppings.data as Topping[],
-    extras: extras.data as Extra[],
-  };
-}</code></pre>
+});</code></pre>
+<p>메뉴·토핑·추가 메뉴도 같은 방식(<code>client.collection("menus").find(...)</code>)으로 가져와 한 번에 돌려줍니다. 타입(<code>Shop</code>, <code>Menu</code> 등)은 3절에서 자동 생성한 것을 그대로 씁니다. 전체: <code>apps/web/src/lib/menu.ts</code></p>
 <table>
 <tr><th>포인트</th><th>의미</th></tr>
 <tr><td><code>populate</code></td><td>03장의 <code>?populate=*</code>와 같은 역할입니다. 사진·사이즈·토핑처럼 <strong>함께 가져올 것</strong>을 지정합니다</td></tr>
-<tr><td><code>await connection()</code></td><td>"빌드할 때가 아니라 <strong>손님이 페이지를 열 때</strong> Strapi에 물어보라"는 표시입니다. 그래서 관리자 화면에서 Publish한 내용이 새로고침만으로 반영되고, 06장의 자동 빌드에서 Strapi가 없어도 빌드가 됩니다</td></tr>
+<tr><td><code>await connection()</code></td><td>"빌드할 때가 아니라 <strong>손님이 페이지를 열 때</strong> Strapi에 물어보라"는 표시입니다. 그래서 관리자 화면에서 Publish한 내용이 새로고침만으로 반영되고, 05·06장의 자동 빌드에서 Strapi가 없어도 빌드가 됩니다</td></tr>
 </table>
-<p>그 밖의 <code>Promise.all</code>(여러 요청을 동시에 보내기)과 <code>cache</code>(같은 요청을 한 번으로 합치기)는 속도를 위한 것이라, 몰라도 동작을 이해하는 데 지장은 없습니다.</p>
 
 <h2>6. 화면: 받아 온 값을 화면에 넣는다</h2>
 <p>여기가 이 장의 핵심입니다. <strong>"Strapi에서 받아 온 값이 화면의 어디에 나오는가"</strong>만 따라가 봅니다.</p>
@@ -264,7 +216,7 @@ pnpm -F web build</code></pre>
 └ ○ /_not-found
 
 ƒ  (Dynamic)  server-rendered on demand</code></pre>
-<p class="ok"><code>/</code>가 <strong>ƒ (Dynamic)</strong>로 표시됩니다. "요청이 올 때 서버에서 만든다"는 뜻입니다. 빌드할 때 Strapi를 부르지 않으므로, 06장의 자동 빌드(CI)에서도 그대로 빌드됩니다.</p>
+<p class="ok"><code>/</code>가 <strong>ƒ (Dynamic)</strong>로 표시됩니다. "요청이 올 때 서버에서 만든다"는 뜻입니다. 빌드할 때 Strapi를 부르지 않으므로, 05·06장의 자동 빌드(CI·배포)에서도 그대로 빌드됩니다.</p>
 <div class="state"><div class="h">📁 04장 완료 시점의 apps/web (주요 파일)</div><pre>apps/web/
 ├── .env.local            토큰 (커밋하지 않음, 03장)
 ├── .env.example
