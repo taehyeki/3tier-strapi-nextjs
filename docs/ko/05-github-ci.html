@@ -16,7 +16,15 @@
 
 <p class="goal">PR을 만들면 CI가 자동으로 돌고, 모두 통과해야만 main에 머지할 수 있는 저장소를 만든다.</p>
 
-<h2>1. 전체 흐름</h2>
+<h2>1. CI란</h2>
+<p><strong>CI(Continuous Integration, 지속적 통합)</strong>는 여러 사람의 변경을 main에 합치기 <strong>전에</strong>, 정해진 검사를 <strong>사람이 아니라 기계가 매번 같은 방식으로</strong> 돌리는 것입니다. 사람이 "검사했겠지"라고 믿는 대신, 검사를 통과한 것만 합칩니다. 그러면 main은 언제나 "검사를 통과한 상태"로 유지되고, 06장에서는 이 main을 그대로 배포할 수 있습니다.</p>
+<p>이 장에서는 어떤 프로젝트에나 필요한 <strong>기본 검사만</strong> 합니다.</p>
+<table>
+<tr><th>이 장에서 하는 것</th><th>하지 않는 것 (프로젝트에 맞게 추가)</th></tr>
+<tr><td>코드 모양·흔한 실수 검사, 타입 검사, 시크릿 검사, 운영용 이미지 빌드, 이미지 취약점 검사</td><td>자동 테스트(단위·화면 조작 테스트), 성능 측정, PR마다 미리보기 환경 배포 등. 이 예시 사이트는 읽기만 하는 단순한 화면이라 넣지 않았습니다</td></tr>
+</table>
+
+<h2>2. 전체 흐름</h2>
 <p>작업은 main이 아니라 <strong>브랜치</strong>(작업용 사본)에서 하고, <strong>PR</strong>(Pull Request, "이 변경을 main에 합쳐 달라"는 신청서)로 합칩니다. 문제 있는 코드는 세 곳에서 막습니다.</p>
 <figure>
 <svg viewBox="0 0 860 200" width="100%" role="img" aria-label="세 겹의 검사">
@@ -54,7 +62,7 @@
 <p>앞쪽일수록 빨리 알려 주고, 뒤쪽일수록 건너뛸 수 없습니다. 같은 검사를 여러 곳에 두는 이유입니다.</p>
 
 <!-- ============================================================ -->
-<h2>2. 커밋 직전 검사: lefthook</h2>
+<h2>3. 커밋 직전 검사: lefthook</h2>
 <p>git에는 <code>git commit</code> 직전에 스크립트를 실행하고, 실패하면 커밋을 멈추는 <strong>hook</strong>이 있습니다. 그런데 hook 파일은 공유되지 않는 <code>.git/</code> 안에 있습니다. <strong>lefthook</strong>은 규칙을 저장소의 <code>lefthook.yml</code>에 적어 두고, <code>pnpm install</code> 때 각자의 PC에 hook을 설치해 줍니다. 그래서 팀 전원이 같은 검사를 거칩니다.</p>
 <p>이 저장소에서는 커밋할 때 두 가지를 검사합니다.</p>
 <pre><code>pre-commit:
@@ -82,9 +90,9 @@ File:        leak-test.ts</code></pre>
 <div class="note">hook은 <code>git commit --no-verify</code>로 건너뛸 수 있고, 설치하지 않은 사람에게는 동작하지 않습니다. 그래서 같은 검사를 CI에서 한 번 더 합니다. <strong>hook은 빠른 알림, CI는 강제</strong>입니다.</div>
 
 <!-- ============================================================ -->
-<h2>3. CI: GitHub Actions</h2>
+<h2>4. CI: GitHub Actions</h2>
 <p><code>.github/workflows/</code>에 YAML 파일을 두면, GitHub이 PR을 만들 때마다 <strong>러너</strong>(GitHub이 준비하는 가상 머신)에서 그 내용을 실행합니다. 러너는 매번 새로 만들어지고 끝나면 버려지므로 "내 PC에서는 되는데"가 통하지 않습니다.</p>
-<p>이 저장소의 CI는 4개의 검사(job)를 동시에 돌립니다.</p>
+<p>이 저장소의 CI는 검사 4개를 동시에 돌립니다(image는 web·cms로 두 번 실행).</p>
 <table>
 <tr><th>검사 이름</th><th>하는 일</th><th>막아 주는 것</th></tr>
 <tr><td><code>check</code></td><td>코드 검사(Biome), 타입 검사</td><td>오타·실수, 내 PC에서만 되는 코드</td></tr>
@@ -118,7 +126,7 @@ File:        leak-test.ts</code></pre>
 </table>
 
 <!-- ============================================================ -->
-<h2>4. 이미지 빌드와 취약점 검사</h2>
+<h2>5. 이미지 빌드와 취약점 검사</h2>
 <p>06장에서는 web과 cms를 <strong>Docker 이미지</strong>(앱과 실행에 필요한 것을 묶은 상자)로 AWS에서 실행합니다. CI는 PR마다 그 이미지를 똑같이 빌드해 보고, 안에 든 부품에 알려진 취약점이 없는지 <strong>Trivy</strong>로 검사합니다.</p>
 <p>Dockerfile에서 중요한 점은 네 가지입니다. 전체: <code>apps/web/Dockerfile</code>, <code>apps/cms/Dockerfile</code></p>
 <ul>
@@ -147,7 +155,7 @@ File:        leak-test.ts</code></pre>
 </details>
 
 <!-- ============================================================ -->
-<h2>5. 저장소 설정</h2>
+<h2>6. 저장소 설정</h2>
 <p>CI만으로는 ✗여도 머지 버튼을 누를 수 있습니다. 저장소 설정 두 가지로 "통과해야만 합칠 수 있게" 만듭니다. 저장소를 만든 뒤, CI가 한 번 돈 다음에 설정합니다.</p>
 
 <h3>머지 방식: squash만</h3>
@@ -160,20 +168,24 @@ File:        leak-test.ts</code></pre>
 <table>
 <tr><th>규칙</th><th>효과</th></tr>
 <tr><td>Require a pull request before merging</td><td>main에 직접 push 금지. 반드시 PR을 거칩니다(혼자 쓰는 저장소면 승인 인원 0)</td></tr>
-<tr><td><strong>Require status checks to pass</strong></td><td><strong>지정한 CI 검사가 ✓가 아니면 머지 불가.</strong> 3절의 4개를 추가합니다</td></tr>
+<tr><td><strong>Require status checks to pass</strong></td><td><strong>지정한 CI 검사가 ✓가 아니면 머지 불가.</strong> 4절의 4개를 추가합니다</td></tr>
 <tr><td>Block force pushes / Restrict deletions</td><td>main의 히스토리 덮어쓰기와 삭제 금지</td></tr>
 </table>
 <figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset 규칙 설정"><figcaption>필수 검사는 CI가 한 번 돈 뒤 검색창에 이름을 입력하면 후보로 나옵니다. 출처가 GitHub Actions인 것을 고릅니다</figcaption></figure>
-<div class="plan">public 저장소는 무료 / private 저장소는 GitHub Pro·Team 이상 (2026-09 기준)</div>
-<p>Secret scanning과 Push protection(1절 그림의 ②)은 public 저장소에서 기본으로 켜져 있습니다. <strong>Settings → Advanced Security</strong>에서 확인할 수 있습니다.</p>
-<div class="plan">private 저장소는 GitHub Secret Protection 필요. CI의 결과 업로드(Code scanning)는 GitHub Code Security 필요 — 없으면 <code>ci.yml</code>의 업로드 단계만 빼면 되고, 머지를 막는 기능은 그대로입니다</div>
+<p>Secret scanning과 Push protection(2절 그림의 ②)은 public 저장소에서 기본으로 켜져 있습니다. <strong>Settings → Advanced Security</strong>에서 확인할 수 있습니다.</p>
+<div class="note">이 장의 설정은 <strong>public 저장소</strong>를 기준으로 했습니다. private 저장소에서는 GitHub 플랜(Team, Enterprise 등)이나 추가 보안 기능 계약에 따라 Ruleset, Secret scanning, Code scanning을 쓸 수 없을 수 있습니다. 회사 저장소에서 쓸 수 있는 기능을 먼저 확인하세요. Code scanning을 쓸 수 없으면 <code>ci.yml</code>의 결과 업로드 단계만 빼면 되고, 머지를 막는 기능은 그대로 동작합니다.</div>
 
 <!-- ============================================================ -->
-<h2>6. 결과: PR 화면</h2>
+<h2>7. 결과: PR 화면</h2>
 <figure><img src="../assets/img/github/pr-checks-passed.png" alt="필수 체크 통과"><figcaption>Ruleset에 지정한 4개에 "Required"가 붙고, 모두 ✓일 때만 "Squash and merge"를 누를 수 있습니다</figcaption></figure>
 <p>머지하면 main에 커밋 1개가 생깁니다. 이 장의 커밋은 PR 제목 그대로입니다.</p>
 <pre><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)</code></pre>
 <p>앞으로의 변경은 모두 같은 흐름입니다: <strong>브랜치 → 커밋(lefthook) → push → PR(CI) → squash 머지</strong>.</p>
+
+<h2>다음: CI에서 CD로</h2>
+<p>CI는 "합치기 <strong>전</strong>"의 검사였습니다. <strong>CD(Continuous Delivery/Deployment, 지속적 배포)</strong>는 그 다음, "합쳐진 <strong>뒤</strong>"에 main을 자동으로 운영 환경에 내보내는 것입니다.</p>
+<pre><code>PR ──(CI: 검사)──▶ squash 머지 ──▶ main 이 바뀜 ──(CD: 06장)──▶ AWS 운영 환경</code></pre>
+<p>main은 이 장의 설정으로 "검사를 통과한 코드만 있는 곳"이 되었습니다. 그래서 06장에서는 <strong>main에 머지되는 순간</strong> 배포 워크플로가 이어서 돌고, 사람이 승인하면 AWS에 반영되도록 만듭니다.</p>
 
 <nav class="pager"><a href="04-nextjs-page.html">← 04 Next.js 화면</a><span>06 배포(CD) →</span></nav>
 </main>
