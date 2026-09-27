@@ -59,9 +59,9 @@
 ## 배포와 CI/CD
 
 - 장 구성(2026-09-27 담당자와 합의): 06 = CD(인프라·배포 워크플로·첫 배포·운영 초기 설정), **07 = 마무리**: 작은 변경을 PR → CI → 머지 → CD 로 운영까지 보내고
-  운영 화면에서 확인. 변경 예시는 CD 가 도는 "코드·스키마 변경"이어야 한다(데이터만 바꾸면 배포가 일어나지 않음) → 예: 토핑에 필드 추가 + 화면 표시,
+  운영 화면에서 확인. 변경 예시는 CD 가 도는 "코드·스키마 변경"이어야 한다(데이터만 바꾸면 배포가 일어나지 않음) → `[변경]` 실제로는 추가 메뉴(Extra)에 품절(soldOut) 추가(아래 07장 항목) + 화면 표시,
   운영 관리자 화면에서 값 입력("스키마는 배포, 데이터는 수동"을 마지막에 다시 체험). 01~04장 축약은 06·07 뒤에 한꺼번에.
-- 배포 시점: **main 에 머지(push)되는 순간 배포 워크플로 시작 → `environment: production` 의 승인 후 실행** — GitHub 공식 문서의 배포 패턴
+- `[변경: 환경 이름 3tier-prod, 승인자 보류 → 머지=배포]` 배포 시점: **main 에 머지(push)되는 순간 배포 워크플로 시작 → `environment: production` 의 승인 후 실행** — GitHub 공식 문서의 배포 패턴
   (push main + environment 보호 규칙, OIDC). 승인이 있으면 Continuous Delivery, 없으면 Continuous Deployment. / 버린 대안: 태그·릴리스 기준 배포(릴리스 주기가 있는 제품용),
   수동 실행(workflow_dispatch)만(자동화 체험이 안 됨), staging → prod 승격(환경 1개라 해당 없음).
 - `[변경→재변경]` GitHub OIDC 역할: 콘솔 수동 → 담당자가 모범 사례를 물어 **CDK 스택(`ThreeTierGithubOidc`)을 로컬에서 1회 배포**로 확정(2026-09-27). 공급자는 계정당 1개라 기존 것을 import. 이전 기록: CDK 스택으로 만들지 않음 — 계정당 1회, 연수자도 회사에서 손으로 만든다.
@@ -106,8 +106,8 @@
 - 로컬에서 배포하지 않는다. 예외: 최초 `cdk bootstrap`, 토대 스택(ECR·OIDC 역할 — 닭과 달걀).
 - `main` 머지 시 `apps/**`·`infra/**` 가 바뀌었을 때만 배포. 인프라만 바뀌면 앱은 CDK 가 필요할 때만 재배포(억지로 재배포하지 않음).
 - AWS 인증은 OIDC(액세스 키를 GitHub 에 두지 않음).
-- CI(PR): Biome, typecheck, build, gitleaks, Docker 빌드, Trivy(결과는 Security 탭 / 없으면 Job Summary). 로컬: lefthook(커밋 전 Biome·gitleaks).
-- GitHub: main Ruleset(PR 필수·CI 통과 필수), Environment `production` 승인, Secret scanning. **Dependabot 은 쓰지 않음**.
+- CI(PR 전용, 2026-09-27~): Biome, typecheck, cdk synth, gitleaks, Docker 빌드, Trivy(결과는 Security 탭 / Job Summary). 로컬: lefthook(커밋 전 gen-types·Biome·gitleaks, #7).
+- GitHub: main Ruleset(PR 필수·CI 통과 필수), Environment `3tier-prod`(승인자 보류, **배포 브랜치 main 제한은 필수** — 리뷰 지적 2026-09-27), Secret scanning. **Dependabot 은 쓰지 않음**.
 - 저장소: 담당자 개인 계정 **public** 으로 모든 기능 체험. 회사 플랜에서 안 되는 기능은 "없으면 생략 가능"으로 표기.
 
 ### 05장 구현 결정 (2026-09-26)
@@ -144,6 +144,13 @@
 - 07장 변경 예시(2026-09-27): **추가 메뉴(Extra)에 품절(soldOut, Boolean) 추가** — 필드 1개·화면 몇 줄로 스키마·타입·화면·배포·운영 데이터가 모두 등장하고, 가게에서 실제로 쓸 법함.
   운영에서 품절을 켜는 조작은 담당자가 직접(연수자 체험과 같은 흐름, 관리자 비밀번호를 Claude 가 다루지 않음) / 버린 대안: 토핑에 필드 추가(표시 변화가 작음), 메뉴 "おすすめ" 배지.
   데이터를 가져오는 menu.ts 는 고치지 않음(extras 는 이미 모든 스칼라 필드를 받음). 메뉴 카드의 "追加できるもの" 줄은 품절을 반영하지 않음(범위 최소화).
+
+- (2026-09-27) lefthook 에 gen-types 추가(#7): 스키마 JSON 이 든 커밋에서만 `pnpm gen:types` 실행·함께 커밋, 잡은 순서대로(piped).
+  OpenAPI 내용은 schema.json 에서 나오지만 `strapi openapi generate` 가 Strapi 를 띄우므로 DB 가 필요. 생성물에 매번 바뀌는 날짜(@default) 29곳 → CI 드리프트 검사는 넣지 않음(타입이 낡으면 CI typecheck 가 실해를 막음).
+- (2026-09-27) 문서 전면 개편(담당자: "연수자용은 너의 기록이 아니다"): 초심자가 3층·CI/CD 기초를 이해하고 자기 CMS 를 만들게 하는 참고 자료.
+  코드 최소(짧은 발췌·요약만), 그림·표·카드, 3층 배지(프론트/백엔드/DB/CI-CD), 몰라도 되는 부분은 "생략 가능" 접기, 가게 비유(홀·주방·창고, 토큰=출입증), 08장(정리) 신설.
+  모든 장을 `.claude/doc-src/NN.src.html` 틀 + `build_doc.py --all` 로 생성. 시니어 리뷰 에이전트(`.claude/agents/senior-doc-reviewer.md`)로 검토 후 18건 반영.
+  Biome 에 CDK 전용 규칙은 추가하지 않음(Biome 에 해당 규칙 없음, infra 는 recommended 로 경고 0, CDK 고유 실수는 cdk synth 가 잡음).
 
 ## 문서
 

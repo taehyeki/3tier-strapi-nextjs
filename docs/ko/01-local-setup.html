@@ -45,6 +45,7 @@
 <tr><td>pnpm 12</td><td>패키지 설치·관리</td><td><code>npx get-pnpm</code> → <strong>터미널을 새로 열기</strong></td><td><code>pnpm -v</code></td></tr>
 <tr><td>Docker</td><td>DB를 컨테이너로 실행</td><td>Docker Desktop 등</td><td><code>docker compose version</code></td></tr>
 <tr><td>Git</td><td>버전 관리</td><td>OS 기본 또는 공식 사이트</td><td><code>git --version</code></td></tr>
+<tr><td>GitHub CLI · AWS CLI <small>(05·06장부터)</small></td><td>GitHub·AWS를 명령으로 조작</td><td>공식 사이트(<code>gh</code>, <code>aws</code>). AWS는 회사 계정의 로그인 방법(SSO 등)으로 자격 증명을 준비</td><td><code>gh --version</code> / <code>aws --version</code></td></tr>
 </table>
 
 <h2>3. 저장소 뼈대</h2>
@@ -52,7 +53,7 @@
 <pre><code>mkdir 3tier-strapi-nextjs &amp;&amp; cd 3tier-strapi-nextjs
 git init -b main
 mkdir apps</code></pre>
-<p>루트에 설정 파일을 둡니다. 내용은 저장소의 파일을 참고하세요. 각 파일이 하는 일은 이렇습니다.</p>
+<p>루트에 설정 파일을 둡니다. 내용은 저장소의 파일을 참고하세요. 저장소의 파일은 <strong>마지막 장까지 끝난 상태</strong>라, 뒤 장에서 추가한 줄(lefthook, 타입 생성 명령, <code>infra</code>, 취약점 대응 <code>overrides</code>)도 들어 있습니다. 이 장 시점의 모습은 <code>git show a0b54d6:package.json</code>처럼 01장 커밋에서 볼 수 있습니다.</p>
 <div class="files">
   <div><code>package.json</code><p>자주 쓰는 명령 모음(<code>pnpm dev:cms</code> 등)과 pnpm 버전 고정</p></div>
   <div><code>pnpm-workspace.yaml</code><p><code>apps/</code> 아래 앱들을 하나로 묶는다 + 설치할 때의 보안 설정</p></div>

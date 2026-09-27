@@ -125,3 +125,15 @@ details.opt > summary { color: var(--muted); }
 /* ---- 전후 비교 ---- */
 .ba { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
 .ba figure { margin: 0; }
+
+/* ---- 가독성 다듬기 ---- */
+header.chapter { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px 18px; }
+header.chapter h1 { text-wrap: balance; }
+h2 { border-left: 4px solid var(--accent); padding: 2px 0 2px 12px; margin-top: 56px; }
+h3 { color: var(--fg); }
+p, li { max-width: 78ch; }
+table { display: table; width: 100%; }
+@media (max-width: 720px) { table { display: block; } }
+th { font-size: 13.5px; }
+figure img { box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.goal { font-weight: 500; }

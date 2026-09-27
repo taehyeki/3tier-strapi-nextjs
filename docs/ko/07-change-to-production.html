@@ -60,7 +60,7 @@ pnpm dev:cms</code></pre>
 <div class="note"><strong>로컬 Strapi를 켠 채로 브랜치를 바꾸지 마세요.</strong> 개발 모드의 Strapi는 파일이 바뀌면 다시 시작하면서 DB를 그 스키마에 맞춥니다. 필드가 없는 브랜치로 바꾸면 그 열을 지워서 입력해 둔 값이 사라집니다(이 자료를 만들 때 실제로 겪음). 브랜치를 바꾸기 전에 Strapi를 멈춥니다.</div>
 
 <h2>4. 화면 수정 <span class="tier front">프론트</span></h2>
-<p>화면 코드가 새 필드를 알도록 타입을 다시 만듭니다. 바로 쓰려면 <code>pnpm gen:types</code>를 실행하고, 잊어도 <strong>커밋할 때 lefthook이 자동으로</strong> 만들어 함께 커밋합니다(05장). 그다음 추가 메뉴 부분을 고칩니다. 아래는 디자인을 뺀 <strong>요약</strong>이고, 실제 파일은 <code>apps/web/src/app/page.tsx</code>입니다.</p>
+<p>화면 코드가 새 필드를 알도록 타입을 다시 만듭니다. <code>pnpm gen:types</code>를 실행합니다(DB 실행 중). 이 저장소처럼 lefthook에 gen-types를 넣어 두면, 잊어도 <strong>커밋할 때 자동으로</strong> 만들어집니다(이 장을 하면서 추가한 것, 9절). 그다음 추가 메뉴 부분을 고칩니다. 아래는 디자인을 뺀 <strong>요약</strong>이고, 실제 파일은 <code>apps/web/src/app/page.tsx</code>입니다.</p>
 <pre><code>{extras.map((extra) =&gt; (
   &lt;li&gt;
     &lt;div className={extra.soldOut ? "흐리게" : undefined}&gt;   // 품절이면 사진을 흐리게
@@ -84,11 +84,11 @@ pnpm dev:cms</code></pre>
 </div>
 
 <h2>6. 커밋 → PR → 머지</h2>
-<p class="where">실행 위치: 저장소 루트</p>
+<p class="where">실행 위치: 저장소 루트 (DB 실행 중. 커밋할 때 타입 생성이 Strapi를 잠깐 띄운다)</p>
 <pre><code>git add apps
 git commit -m "feat: 追加メニューに「売り切れ」表示を追加"
 git push -u origin feat/extra-sold-out</code></pre>
-<p>커밋할 때 lefthook이 타입 생성과 코드 모양 정리를 해 줍니다. GitHub에서 PR을 만들면 CI 4개가 돌고, 모두 통과하면 squash 머지합니다.</p>
+<p>커밋할 때 lefthook이 코드 모양 정리(와 gen-types를 넣었다면 타입 생성)를 해 줍니다. GitHub에서 PR을 만들면 CI 4개가 돌고, 모두 통과하면 squash 머지합니다.</p>
 
 <h2>7. 자동 배포 <span class="tier ops">CI/CD</span></h2>
 <p>머지하면 06장의 배포가 스스로 시작합니다. 사람이 할 일은 없습니다.</p>
@@ -106,6 +106,8 @@ git push -u origin feat/extra-sold-out</code></pre>
 
 <h2>9. 커밋</h2>
 <pre><code>feat: 追加メニューに「売り切れ」表示を追加 (#6)</code></pre>
+<p>이 장을 하면서 "타입 생성을 잊기 쉽다"는 것을 알게 되어, 커밋할 때 자동으로 만들도록 lefthook을 고쳤습니다(05장 4절의 gen-types).</p>
+<pre><code>chore: スキーマを変えたコミットでは型の再生成(gen:types)を自動で行う (#7)</code></pre>
 
 <nav class="pager"><a href="06-deploy.html">← 06 CD·배포</a><a href="08-summary.html">08 정리 →</a></nav>
 </main>

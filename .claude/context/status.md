@@ -13,15 +13,10 @@
 
 | 장 | 파일 | 상태 |
 |---|---|---|
-| 00 전체 구조 | docs/ko/00-overview.html | 완료 (06장 재설계에 맞춰 흐름·장 구성 갱신) |
-| 01 로컬 환경 | docs/ko/01-local-setup.html | **참고 자료 형식으로 축약**(2026-09-27, 발췌는 01장 커밋 a0b54d6 과 일치 확인) |
-| 02 스키마 | docs/ko/02-strapi-schema.html | 축약: 그릇 개념은 유지, 조작 단계를 표 1개로, 더 해보기 삭제 |
-| 03 데이터·API | docs/ko/03-data-and-api.html | 축약: 데이터 입력을 표 1개로, 토큰 원리 유지 |
-| 04 Next.js | docs/ko/04-nextjs-page.html | 축약: menu.ts 발췌를 getShop 만으로 |
-| 05 GitHub·CI | docs/ko/05-github-ci.html | PR 전용 CI·공용 빌드 액션(.github/actions/build-image)에 맞춰 갱신 |
-| 06 배포(CD) | docs/ko/06-deploy.html | **초안 완료**(스크린샷 3장: deploy 실행·운영 관리자 등록 화면·운영 사이트). 틀·빌드 스크립트 `.claude/doc-src/` |
-| 07 변경을 운영까지 | docs/ko/07-change-to-production.html | **초안**: Extra 에 soldOut(품절) 추가 → PR #6 머지(1d49d31) → 자동 배포 성공(약 10분). 남은 것: 운영 관리자 화면에서 チャーシュー 품절 켜기(담당자) → `after-prod.png` 캡처 → 빌드. 틀 `.claude/doc-src/07.src.html` |
-| 일본어 번역 | docs/ja/ | 담당자 승인 후 |
+| 00~08 | docs/ko/*.html | **초심자용 참고 자료로 전면 개편 완료(2026-09-27), 담당자 검토 대기(PR #5)**. 틀 `.claude/doc-src/NN.src.html` → `python3 .claude/doc-src/build_doc.py --all`. 시니어 리뷰 18건 반영 |
+| 07 변경을 운영까지 | 07-change-to-production.html | 완료: Extra.soldOut → PR #6 → 자동 배포 → 운영에서 담당자가 켬, before/after 캡처 |
+| 08 정리 | 08-summary.html | 신설: 전체 요약, 원칙 5가지, "여러분이 할 일" |
+| 일본어 번역 | docs/ja/ | 담당자 승인 후. **코드 주석(한국어)도 번역 대상**(리뷰 지적) |
 
 장별 커밋 (pnpm 12 로 재작성 → 2026-09-27 메시지 일본어화. 이전: `backup/pre-pnpm12`, `backup/pre-ja-msg`):
 `a0b54d6 chore: ローカル開発環境を構築` / `e118ddf feat(cms): メニューのスキーマを追加` / `37d5e4c chore(web): Strapi 接続設定の例を追加` / `3057d62 feat(web): メニューページ`.

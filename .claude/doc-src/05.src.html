@@ -25,28 +25,43 @@
 <tr><td>코드 모양·흔한 실수, 타입, 비밀 값 유출, 운영용 이미지 빌드, 이미지 취약점</td><td>자동 테스트(단위·화면 조작), 성능 측정 등. 이 예시는 읽기만 하는 단순한 화면이라 넣지 않았습니다</td></tr>
 </table>
 
-<h2>2. 세 겹의 검사</h2>
+<h2>2. GitHub에 올리고 첫 PR 만들기</h2>
+<p>GitHub에서 <strong>빈 저장소</strong>를 만들고(README 등은 추가하지 않음), 01~04장의 커밋을 올립니다. 그다음부터는 브랜치를 만들어 PR로 합칩니다.</p>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>git remote add origin https://github.com/&lt;owner&gt;/&lt;repo&gt;.git
+git push -u origin main              # 01~04장의 커밋 (main 보호를 켜기 전에)
+
+git switch -c ci/setup               # 이 장의 작업은 브랜치에서
+# … 3~5절의 파일을 추가 …
+git add . &amp;&amp; git commit -m "ci: lefthook・Dockerfile・GitHub Actions の CI を追加"
+git push -u origin ci/setup          # → GitHub 화면에서 "Compare &amp; pull request"로 PR 생성</code></pre>
+<p>PR을 만들면 CI가 처음으로 돕니다. 한 번 돈 뒤에 6절의 저장소 설정(main 보호)을 켭니다. 검사 이름이 한 번 등록되어야 필수 검사로 고를 수 있기 때문입니다.</p>
+
+<h2>3. 세 겹의 검사</h2>
 <p>작업은 main이 아니라 <strong>브랜치</strong>(작업용 사본)에서 하고, <strong>PR</strong>(Pull Request, "이 변경을 main에 합쳐 달라"는 신청서)로 합칩니다.</p>
 <figure>
 {{INC:svg/05-0.svg}}
 </figure>
 <p>앞쪽일수록 빨리 알려 주고, 뒤쪽일수록 건너뛸 수 없습니다. 그래서 같은 검사를 여러 곳에 둡니다.</p>
 
-<h2>3. 커밋 직전: lefthook</h2>
+<h2>4. 커밋 직전: lefthook</h2>
 <p><code>git commit</code>을 누르는 순간 내 PC에서 자동으로 도는 검사입니다. 규칙은 저장소의 <code>lefthook.yml</code>에 있고, <code>pnpm install</code> 때 각자의 PC에 설치되므로 팀 전원이 같은 검사를 거칩니다.</p>
+<p class="where">실행 위치: 저장소 루트</p>
+<pre><code>pnpm add -Dw lefthook</code></pre>
+<p>그리고 <code>pnpm-workspace.yaml</code>의 <code>allowBuilds</code>에 <code>lefthook: true</code>를 적습니다. 01장에서 "설치할 때 스크립트 실행을 막는다"고 했는데, lefthook은 설치할 때 git에 검사를 등록하는 스크립트가 필요해서 이것만 허용합니다.</p>
 <table>
 <tr><th>검사</th><th>하는 일</th></tr>
-<tr><td>gen-types</td><td>Strapi 스키마 파일이 커밋에 들어 있으면, 화면용 타입을 다시 만들어 함께 커밋(04장의 <code>pnpm gen:types</code>를 자동으로. DB가 켜져 있어야 함)</td></tr>
+<tr><td>gen-types <small>(07장 뒤에 추가)</small></td><td>Strapi 스키마 파일이 커밋에 들어 있으면, 화면용 타입을 다시 만들어 함께 커밋(04장의 <code>pnpm gen:types</code>를 자동으로. DB가 켜져 있어야 함)</td></tr>
 <tr><td>biome</td><td>커밋할 파일의 코드 모양을 고치고, 흔한 실수를 찾는다</td></tr>
 <tr><td>gitleaks</td><td>비밀번호·토큰처럼 보이는 문자열이 있으면 <strong>커밋 자체를 막는다</strong></td></tr>
 </table>
 <p>hook은 건너뛸 수 있고(<code>--no-verify</code>) 설치하지 않은 사람에게는 동작하지 않습니다. 그래서 같은 검사를 CI에서 한 번 더 합니다. <strong>hook은 빠른 알림, CI는 강제</strong>입니다.</p>
 
-<h2>4. PR마다: GitHub Actions</h2>
+<h2>5. PR마다: GitHub Actions</h2>
 <p><code>.github/workflows/ci.yml</code>에 적어 두면, GitHub이 PR마다 <strong>러너</strong>(GitHub이 준비하는 새 가상 머신)에서 검사를 돌립니다. 러너는 매번 새로 만들어지므로 "내 PC에서는 되는데"가 통하지 않습니다.</p>
 <table>
 <tr><th>검사 이름</th><th>하는 일</th><th>막아 주는 것</th></tr>
-<tr><td><code>check</code></td><td>Biome, 타입 검사, 인프라 코드(CDK) 변환 확인</td><td>실수·오타, 내 PC에서만 되는 코드</td></tr>
+<tr><td><code>check</code></td><td>Biome, 타입 검사, 인프라 코드(CDK) 변환 확인 <small>(CDK는 06장에서 추가)</small></td><td>실수·오타, 내 PC에서만 되는 코드</td></tr>
 <tr><td><code>secrets</code></td><td>gitleaks로 <strong>모든 커밋 기록</strong>을 검사</td><td>과거 커밋에 섞인 비밀 값</td></tr>
 <tr><td><code>image (web)</code> / <code>image (cms)</code></td><td>운영과 같은 Docker 이미지를 빌드하고 Trivy로 취약점 검사</td><td>깨진 빌드, 이미지 안의 알려진 취약점</td></tr>
 </table>
@@ -55,11 +70,11 @@
 <table>
 <tr><th>원칙</th><th>왜</th></tr>
 <tr><td>남이 만든 액션은 버전 이름(<code>@v7</code>)이 아니라 <strong>커밋 SHA로 고정</strong></td><td>버전 이름은 다른 코드로 바꿔칠 수 있습니다. 2026년 3월 실제로 유명 액션이 악성 코드로 바뀌어 많은 CI에서 비밀 값이 유출됐습니다</td></tr>
-<tr><td>CI에 주는 권한은 <strong>읽기만</strong>(<code>permissions: contents: read</code>)</td><td>액션이 악성이어도 저장소를 고칠 수 없습니다</td></tr>
+<tr><td>CI에 주는 권한은 <strong>기본 읽기만</strong>(<code>permissions: contents: read</code>). 검사 결과 업로드에 필요한 쓰기 하나만 해당 job에 추가</td><td>액션이 악성이어도 저장소를 고칠 수 없습니다</td></tr>
 </table>
 </details>
 
-<h2>5. Docker 이미지와 취약점 검사</h2>
+<h2>6. Docker 이미지와 취약점 검사</h2>
 <p>06장에서는 화면과 CMS를 <strong>Docker 이미지</strong>(앱과 실행에 필요한 것을 묶은 상자)로 AWS에서 실행합니다. CI는 PR마다 그 이미지를 똑같이 빌드해 보고, 안에 든 부품에 알려진 취약점이 없는지 <strong>Trivy</strong>로 검사합니다. 레시피는 <code>apps/web/Dockerfile</code>, <code>apps/cms/Dockerfile</code>입니다.</p>
 <div class="cards">
   <div class="card"><h4>2단계로 만든다</h4><p>1단계에서 설치·빌드, 2단계에는 실행에 필요한 결과물만 옮긴다. 빌드 도구는 운영 이미지에 없다</p></div>
@@ -77,7 +92,7 @@
 <p>CI는 Trivy 결과를 SARIF(검사 결과의 표준 형식)로 GitHub에 올립니다. Code scanning은 검사기가 아니라, 올라온 결과를 경고 목록으로 보관하고 "언제 생겼고 언제 고쳐졌는지"를 추적하는 기능입니다. 쓸 수 없는 플랜이면 결과 업로드 단계만 빼면 됩니다.</p>
 </details>
 
-<h2>6. 저장소 설정: "통과해야만 합칠 수 있게"</h2>
+<h2>7. 저장소 설정: "통과해야만 합칠 수 있게"</h2>
 <p>CI는 결과(✓/✗)를 표시만 합니다. 강제하는 것은 저장소 설정입니다. CI가 한 번 돈 뒤에 설정합니다.</p>
 <h3>머지 방식: squash만</h3>
 <p><strong>Settings → General → Pull Requests</strong>. PR 안의 커밋 여러 개를 main에 <strong>커밋 1개</strong>로 합칩니다. PR 제목이 main의 커밋 메시지가 되어 기록이 깔끔합니다.</p>
@@ -87,17 +102,16 @@
 <table>
 <tr><th>규칙</th><th>효과</th></tr>
 <tr><td>Require a pull request before merging</td><td>main에 직접 push 금지. 반드시 PR을 거친다</td></tr>
-<tr><td><strong>Require status checks to pass</strong></td><td>4절의 검사 4개가 ✓가 아니면 머지 불가</td></tr>
+<tr><td><strong>Require status checks to pass</strong></td><td>5절의 검사 4개가 ✓가 아니면 머지 불가</td></tr>
 <tr><td>Block force pushes / Restrict deletions</td><td>main의 기록 덮어쓰기·삭제 금지</td></tr>
 </table>
 <figure><img src="../assets/img/github/ruleset-rules.png" alt="Ruleset 규칙 설정"><figcaption>필수 검사는 CI가 한 번 돈 뒤 이름을 검색하면 후보로 나온다</figcaption></figure>
 <div class="note">이 장의 설정은 <strong>public 저장소</strong> 기준입니다. private 저장소에서는 GitHub 플랜에 따라 Ruleset, Secret scanning, Code scanning을 쓸 수 없을 수 있습니다. 회사 저장소에서 쓸 수 있는 기능을 먼저 확인하세요.</div>
 
-<h2>7. 결과: PR 화면</h2>
+<h2>8. 결과: PR 화면</h2>
 <figure><img src="../assets/img/github/pr-checks-passed.png" alt="필수 체크 통과"><figcaption>필수 검사 4개에 "Required"가 붙고, 모두 ✓일 때만 "Squash and merge"를 누를 수 있다</figcaption></figure>
 <p>앞으로의 변경은 모두 같은 흐름입니다: <strong>브랜치 → 커밋(lefthook) → push → PR(CI) → squash 머지</strong>. 이 장의 커밋은 PR 제목 그대로입니다.</p>
-<pre><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)
-chore: スキーマを変えたコミットでは型の再生成(gen:types)を自動で行う (#7)</code></pre>
+<pre><code>ci: lefthook・Dockerfile・GitHub Actions の CI を追加 (#1)</code></pre>
 
 <h2>다음: CI에서 CD로</h2>
 <p>CI는 "합치기 <strong>전</strong>"의 검사였습니다. <strong>CD</strong>는 "합쳐진 <strong>뒤</strong>" main을 자동으로 운영에 내보내는 것입니다(06장).</p>

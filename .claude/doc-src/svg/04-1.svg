@@ -6,5 +6,5 @@
   <path class="ar" d="M200 75 H351"/><text class="s" x="210" y="65">strapi openapi generate</text>
   <path class="ar" d="M545 75 H696"/><text class="s" x="560" y="65">openapi-typescript</text>
   <text class="s" x="10" y="140">내용은 스키마(설계도)에서 나온다. DB 의 데이터는 쓰지 않지만, 생성할 때 Strapi 를 한 번 띄우므로 DB 가 켜져 있어야 한다.</text>
-  <text class="s" x="10" y="164">명령은 pnpm gen:types 하나. 05장부터는 스키마 파일이 든 커밋에서 lefthook 이 자동으로 실행한다.</text>
+  <text class="s" x="10" y="164">명령은 pnpm gen:types 하나. 잊기 쉬워서 나중에 lefthook 에 넣어, 스키마 파일이 든 커밋에서 자동으로 실행되게 했다(05·07장).</text>
 </svg>

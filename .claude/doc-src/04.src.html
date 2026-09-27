@@ -39,16 +39,17 @@ pnpm -F web add -D openapi-typescript</code></pre>
 <figure>
 {{INC:svg/04-1.svg}}
 </figure>
-<p class="where">실행 위치: 저장소 루트 (DB 실행 중)</p>
-<pre><code>pnpm gen:types</code></pre>
 <p>예를 들어 02장에서 선택지로 만든 사이즈는 <code>"small" | "medium" | "large"</code>라는 타입이 됩니다. 화면 코드에서 <code>"smal"</code>이라고 잘못 쓰면 바로 오류로 알려 줍니다.</p>
-<details class="opt">
-<summary>처음 만들 때 등록한 명령 (저장소에는 이미 있음) <span class="skip">생략 가능</span></summary>
+<p>이 명령은 처음에 직접 등록합니다(저장소에는 이미 있음).</p>
+<p class="where">실행 위치: 저장소 루트</p>
 <pre><code>cd apps/cms &amp;&amp; npm pkg set scripts.openapi="strapi openapi generate --output openapi.json" &amp;&amp; cd ../..
 cd apps/web &amp;&amp; npm pkg set scripts.gen:types="openapi-typescript ../cms/openapi.json -o src/types/strapi.d.ts" &amp;&amp; cd ../..
 npm pkg set scripts.gen:types="pnpm -F cms openapi &amp;&amp; pnpm -F web gen:types &amp;&amp; biome format --write apps/web/src/types"</code></pre>
 <p>중간 파일 <code>apps/cms/openapi.json</code>은 <code>.gitignore</code>에 넣어 커밋하지 않습니다. Strapi의 OpenAPI 생성은 현재 실험적(experimental) 기능이라 출력 형식이 바뀔 수 있습니다.</p>
-</details>
+<p>등록했으면 실행합니다.</p>
+<p class="where">실행 위치: 저장소 루트 (DB 실행 중)</p>
+<pre><code>pnpm gen:types</code></pre>
+
 
 <h2>4. Strapi 접속과 데이터 가져오기</h2>
 <p>코드는 두 파일로 나눴습니다. 핵심만 보면 이렇습니다.</p>
